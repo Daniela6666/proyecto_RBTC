@@ -48,10 +48,10 @@ ekf_filter_node:
     # ---------------------------------------------------------------
     # imu0: IMU de Gazebo (/imu, sensor_msgs/Imu, frame imu_link, 100 Hz).
     # Se fusiona solo vyaw (velocidad angular alrededor de z): medida directa del giro.
-    # NO se fusiona yaw (orientacion absoluta). Motivo MEDIDO en esta instalacion
-    # (gz-sim 6.18 / ros_gz 0.244.26): /imu publica orientation = (0,0,0,1) con
-    # orientation_covariance[8] = 0 en todo el ensayo, es decir, no aporta yaw real.
-    # Fusionar ese yaw fijaria el yaw del EKF a 0 (ver informe 2.1).
+    # NO se fusiona yaw (orientacion absoluta). Tras corregir el chasis (informe 2.1)
+    # el yaw de /imu sigue al giro real de gz, pero gz no publica covarianza de
+    # orientacion (orientation_covariance[8] = 0). Con covarianza 0 robot_localization
+    # trata la medida como exacta; hasta tener una covarianza valida no se fusiona yaw.
     # NO se fusiona ax: la aceleracion lineal es ruidosa y la velocidad lineal
     # ya viene de la odometria; con ax activo habria que tratar gravedad y sesgos.
     # Si algun dia se activa ax, imu0_remove_gravitational_acceleration debe ser true.
