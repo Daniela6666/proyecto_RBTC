@@ -172,5 +172,5 @@ Waypoints en `src/dif_bot/config/waypoints.yaml`. `scripts/humble.sh` abre un en
 ## Estado
 
 - Simulación, SLAM, AMCL, Nav2 y misión: implementados (ramas de persona B y C).
-- Práctica 1 y 2 (persona A): implementadas en este merge sobre el robot de persona B. Las medidas de `docs/informe_A.md` se hicieron con el robot anterior y hay que repetirlas.
+- Práctica 1 y 2 (persona A): implementadas en este merge sobre el robot de persona B. Las medidas de la Práctica 1 (`src/dif_bot/docs/informe_A.md`, sección 1) se repitieron con el robot actual el 2026-11-22; las de la Práctica 2 (sección 2) siguen siendo del robot anterior y hay que repetirlas.
 - Pendiente: exploración completa y ensayos P3/P4 (B), video y informe final.
