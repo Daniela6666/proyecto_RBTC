@@ -147,6 +147,8 @@ Solo lo medido (sin datos de la simulación en pantalla):
 
 Fuentes de las desviaciones (salidas guardadas en el scratchpad del equipo): `harness_false.out` y `harness_false2.out` para el modo sin ros2_control; `harness_true.out` y `harness_true2.out` para el modo con ros2_control. Los launches reales no capturaron la desviación. `harness.sh` y los `.out` de estas pruebas no están versionados en el repo; están en el scratchpad de la sesión.
 
+> **[re-medir]** La caja de `base_link` cambió de altura (ver 2.1). Las cifras de `x` de esta sección son de antes del cambio y no describen el robot actual. Pendiente repetir el ensayo.
+
 **Movimiento tras publicar `cmd_vel` a 0.2 m/s** (lectura de `pose.position.x`). Duración real del publish según el script que generó cada corrida: `harness_false.out` usó `timeout 4` (su etiqueta decía "3 s"); `harness_true.out` usó `timeout 5` (su etiqueta decía "4 s"); `harness_false2.out`, `harness_true2.out` y el launch real usaron `timeout 5`. Las etiquetas de los `.out` no coinciden con el timeout; los datos son los del timeout. La lectura posterior se hace inmediatamente después.
 
 | Corrida | Topic de comando | x antes | x después |
@@ -196,15 +198,16 @@ Fuente: `src/dif_bot/config/ekf.yaml`, modo 2D. Orden de los 15 campos de `*_con
 | Odometría de rueda | `/odom` (gz DiffDrive) o `/diff_drive_controller/odom` (ros2_control) | `vx`, `vyaw` | La velocidad de las ruedas es la medida directa de avance y de giro. | `x`, `y`, `yaw` de la pose: son una integración de las ruedas y acumulan deriva; fusionarlos heredaría esa deriva. |
 | IMU | `/imu` (`sensor_msgs/Imu`, frame `imu_link`, 100 Hz) | `vyaw` | Es la única medida de giro que aporta la IMU. | `yaw` absoluto: no lo aporta en esta simulación (ver hallazgo). `ax`: es ruidosa y `vx` ya viene de la odometría; usarla obligaría a tratar gravedad y sesgos. |
 
-**Hallazgo: la IMU de esta simulación no aporta yaw ni giro válidos (medido).**
+**Hallazgo (corregido): la IMU funcionaba; el robot no giraba físicamente.** Medido con la pose real de Gazebo.
 
-- `/imu` publica `orientation = (0, 0, 0, 1)` con `orientation_covariance[8] = 0` en todos los ensayos, también durante el giro.
-- A mitad del giro (`/odom` a 0.5 rad/s) `angular_velocity.z = 0.0000` y `angular_velocity_covariance[8] = 0`. `linear_acceleration.z = 9.800`, así que la IMU mide la gravedad pero no el giro.
-- Las covarianzas a 0 no se rechazan: robot_localization las fusiona como ruido de medida nulo. Ese es el problema práctico:
-  - Con el yaw absoluto de la IMU fusionado, el yaw del EKF queda en 0: tras el giro de 2.5 rad, `/odom_filtered` marcó yaw 0.0000 (corrida con la primera configuración, `imu0_config` con yaw y vyaw).
-  - Con solo `vyaw` de la IMU (0 con covarianza 0) junto al `vyaw` de la odometría (0.5), el EKF queda en la media: 0.25 rad/s a mitad del giro.
-- **Decisión:** se quitó el yaw de la IMU de `imu0_config`. Se mantiene `vyaw` porque es la única medida de giro disponible, aunque en esta simulación empeora el resultado (ver 2.4 y 2.5).
-- No se ha cambiado `process_noise_covariance` ni se ha añadido ruido de sensor al URDF. NO VERIFICADO: si un ruido de medida mayor en la IMU mejora algo.
+- **Antes del cambio**, con `cmd_vel` angular 0.5 rad/s durante 5 s: `/odom` marcaba yaw 2.5000, pero la pose de `dif_bot` en Gazebo (`/world/empty_world/pose/info`) tenía yaw 0.0000 y `/imu` daba `orientation = (0,0,0,1)` y `angular_velocity.z = 0.0000`. Las ruedas sí giraban a ±1.5 rad/s (`/joint_states`, correcto: 0.5·0.15/0.05). Es decir, la rueda gira y el cuerpo no. La IMU dijo la verdad.
+- **Causa raíz:** en `urdf/robot.urdf.xacro`, la caja de `base_link` (0.4 × 0.25 × 0.1, centrada en `base_link`) tenía su cara inferior a z = 0 del suelo, la misma altura que el fondo de las ruedas. El chasis apoyaba plano sobre el suelo con fricción (mu = 1 por defecto), y esa fricción frenaba el giro sobre sí mismo. En línea recta no se notaba: `x` era correcto (1.010 m reales frente a 1.0 de odometría).
+- **Cambio:** caja de `base_link` (visual y collision) con `<origin xyz="0 0 0.02">`, 2 cm de holgura. Ruedas, ejes, frames y nombres de topics sin cambios. Se probó también 5 cm: el robot quedó inclinado unos 0.25 rad al reposar, así que se descartó.
+- **Después** (sin EKF, mismo ensayo): yaw real de gz 2.7753; `/imu` yaw 2.7753 (coincide con gz); `/imu` `angular_velocity.z = 0.5527` a mitad del giro y 0.0 al parar; `/odom` yaw 2.5000. La orientación del IMU ya es válida, pero `orientation_covariance[8]` sigue siendo 0 (gz no la publica).
+- **Pendiente, no resuelto:** en reposo el robot queda con pitch de unos 0.1 rad, apoyado en la esquina delantera de la caja. El centro de masas, calculado con las masas del URDF, queda unos 1 mm por delante del eje de ruedas. Es un ajuste de masas o del caster y no se ha tocado.
+- **Pendiente, no determinado:** `/odom` subestima el giro real en ~10% (2.5 frente a 2.7753). A mitad del giro el cuerpo va a 0.55 rad/s frente a los 0.5 que predice la cinemática de ruedas. No se ha determinado la causa (posible deslizamiento). NO VERIFICADO.
+- **Decisión sobre `imu0_config`:** se mantiene `vyaw` de la IMU. El yaw absoluto sigue sin fusionarse porque su covarianza es 0 y robot_localization la trataría como medida exacta. Esto se documenta en `config/ekf.yaml`.
+- No se ha cambiado `process_noise_covariance` ni se ha añadido ruido de sensor. NO VERIFICADO: si un ruido de medida mayor en la IMU mejora algo.
 
 ### 2.2 Frame que publica el EKF
 
@@ -213,7 +216,7 @@ Fuente: `src/dif_bot/config/ekf.yaml`, modo 2D. Orden de los 15 campos de `*_con
 - Con `use_ekf:=true` la odometría de rueda no publica `odom -> base_link`:
   - gz DiffDrive: `tf_topic` apunta a `/model/dif_bot/tf_ekf_disabled` (no se bridgea), y `/tf` no se bridgea. Sin `use_ekf` no cambia nada.
   - ros2_control: se carga `config/controllers_ekf.yaml` (copia de `controllers.yaml` con `enable_odom_tf: false`). Verificado con `ros2 param get /diff_drive_controller enable_odom_tf`: `Boolean value is: False`.
-- Sin `use_ekf` el URDF generado con `xacro` es idéntico al de HEAD (diff vacío en ambos modos). Con `use_ekf:=true` solo cambian esas dos líneas.
+- Con `use_ekf:=true` solo cambian esas dos líneas del URDF generado. Desde el cambio de la caja de `base_link` (ver 2.1), el URDF difiere de HEAD en esas dos líneas `<origin>` de la caja, en ambos modos.
 
 ### 2.3 Verificación del árbol TF
 
@@ -259,23 +262,25 @@ ros2 run plotjuggler plotjuggler
 
 NO VERIFICADO: no se han abierto `rqt_plot` ni PlotJuggler (son GUI y no se ha hecho captura en esta sesión).
 
-**Prueba de movimiento.** Secuencia: lineal 0.2 m/s durante 5 s, parada 1 s, giro 0.5 rad/s durante 5 s, parada 1 s. La medida se toma al final de cada fase, con reloj de simulación. El yaw se calcula desde el cuaternión: `yaw = atan2(2(w·z + x·y), 1 − 2(y² + z²))`. Tras la fase lineal, `/odom` y `/odom_filtered` dan `x = 1.0000 m` en las tres corridas.
+**Prueba de movimiento** (tras el cambio del chasis, 2.1). Secuencia: lineal 0.2 m/s durante 5 s, parada 1 s, giro 0.5 rad/s durante 5 s, parada 1 s. La medida se toma al final de cada fase, con reloj de simulación. El yaw se calcula desde el cuaternión: `yaw = atan2(2(w·z + x·y), 1 − 2(y² + z²))`. La referencia es la pose de Gazebo, leída antes y después del movimiento (`gz` antes: x = 0.0000 m, yaw 0.0000; después: x = 1.0098 m, y = −0.0018 m, yaw 2.7753 rad).
 
 | Corrida | Topic | `yaw` a mitad de giro | `yaw` final | `x`, `y` final |
 |---|---|---|---|---|
-| gz, con IMU (`vyaw` de IMU) | `/odom` | 1.2410 | 2.5000 | 1.0000, −0.0000 |
-| | `/odom_filtered` | 0.3055 | 0.6250 | 1.0000, −0.0000 |
-| gz, sin IMU | `/odom` | 1.2395 | 2.5000 | 1.0000, −0.0000 |
-| | `/odom_filtered` | 1.2200 | 2.5000 | 1.0002, −0.0003 |
-| ros2_control, con IMU | `/diff_drive_controller/odom` | 1.2450 | 2.5000 | 1.0000, −0.0000 |
-| | `/odom_filtered` | 0.2988 | 0.6250 | 1.0000, −0.0000 |
+| Referencia (pose de gz) | — | — | 2.7753 | 1.0098, −0.0018 |
+| sin EKF | `/odom` | 1.2395 | 2.5000 | 1.0000, 0.0000 |
+| sin EKF | `/imu` (yaw) | 1.3790 | 2.7753 | — |
+| EKF con IMU (`vyaw` de IMU) | `/odom` | 1.2460 | 2.5000 | 1.0000, 0.0000 |
+| EKF con IMU | `/odom_filtered` | 1.3219 | 2.6959 | 1.0001, −0.0001 |
+| EKF sin IMU | `/odom` | 1.2400 | 2.5000 | 1.0000, 0.0000 |
+| EKF sin IMU | `/odom_filtered` | 1.2200 | 2.5000 | 1.0002, −0.0003 |
 
-Lectura honesta:
+Lectura:
 
-- **Sin IMU, el EKF reproduce la odometría** (diferencias de 2e-4 m en x y 3e-4 m en y; yaw final igual). Eso es lo esperable en simulación sin ruido: `/odom` ya es casi perfecta y el EKF no tiene nada que corregir.
-- **Con la IMU de esta simulación, el EKF empeora el giro**: yaw final 0.625 rad frente a 2.5 rad de la odometría. La causa está medida en 2.1 (giro de la IMU a 0 con covarianza 0). **No se afirma que el EKF mejore nada en esta simulación.**
-- Frecuencias: `/odom_filtered` 29.98–30.00 Hz en las cuatro corridas. `/diff_drive_controller/odom` 49.9 Hz en la sonda de ros2_control. `/odom` no se ha vuelto a medir en esta sesión (NO VERIFICADO aquí; ver 1.5).
-- La pose física del robot en gz no se pudo leer (`gz topic` respondió "An instance of Gazebo is not running" en su intento), así que **no se sabe si el robot gira 2.5 rad de verdad**. NO VERIFICADO.
+- **Error de yaw frente a la referencia (2.7753 rad):** odometría 0.275 rad (−9.9%); EKF con IMU 0.079 rad (−2.9%); EKF sin IMU 0.275 rad, igual que la odometría.
+- **Con la IMU, el EKF mejora el giro** frente a la odometría. Antes del cambio del chasis, la misma comparación daba 0.625 rad con IMU, pero entonces el robot no giraba y ese resultado queda descartado.
+- **Sin IMU, el EKF reproduce la odometría** (diferencias de 2e-4 m en x y 3e-4 m en y), que es lo esperable sin ruido: no hay nada que corregir.
+- Frecuencias: `/odom_filtered` 29.98–30.00 Hz (medido antes del cambio; NO RE-MEDIDO tras él, el cambio no debería afectar a la frecuencia). Las filas de ros2_control de la versión anterior de esta tabla eran de antes del cambio y se han quitado: **re-medir** `/diff_drive_controller/odom` y su EKF con este mismo ensayo.
+- Se ha comprobado la pose física del robot con `ign topic -e -t /world/empty_world/pose/info`, que sí funciona en este entorno (con `IGN_PARTITION=iamu77`). El giro real de gz coincide con el yaw del IMU.
 
 ### 2.5 Efecto de desactivar la IMU
 
@@ -290,7 +295,7 @@ ros2 launch dif_bot ekf.launch.py use_imu:=false
 ros2 topic hz /odom_filtered
 ```
 
-Con el mismo movimiento de 2.4, el yaw final de `/odom_filtered` pasa de 0.6250 rad (con IMU) a 2.5000 rad (sin IMU), igual que `/odom`. Lo que se ve aquí es el efecto de la IMU concreta de esta simulación, no una propiedad del EKF. No se ha probado con ruido ni con una IMU que sí mida giro.
+Con el mismo movimiento de 2.4 y el chasis corregido, el yaw final de `/odom_filtered` es 2.6959 rad con IMU y 2.5000 rad sin IMU (igual que `/odom`). Frente a la referencia de gz (2.7753 rad), la IMU reduce el error de 0.275 a 0.079 rad. Las cifras anteriores de esta sección (0.6250 rad con IMU) eran de un robot que no giraba y quedan descartadas. No se ha probado con ruido de sensor.
 
 > **[OBSERVACIÓN PENDIENTE DE DANIELA]** En pantalla (Gazebo con GUI, sin `headless`), repetir el giro de 5 s a 0.5 rad/s con `use_imu:=true` y con `use_imu:=false` y anotar:
 > - yaw final de `/odom`: ______
