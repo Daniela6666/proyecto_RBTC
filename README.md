@@ -60,9 +60,9 @@ ros2 control load_controller --set-state active joint_state_broadcaster
 ros2 control load_controller --set-state active diff_drive_controller
 ```
 
-Con ros2_control la odometría sale en `/diff_drive_controller/odom` y el comando se envía a `/diff_drive_controller/cmd_vel_unstamped` (no a `/odom` ni `/cmd_vel`).
+Con ros2_control la odometría NO está en `/odom` y el comando NO va a `/cmd_vel`; están en `/diff_drive_controller/odom` y `/diff_drive_controller/cmd_vel_unstamped`.
 
-**Aviso de entorno:** en WSL sin GPU, Gazebo termina al spawnear el robot por un fallo de render de Ogre2 de los sensores (lidar y cámara). Ver `src/dif_bot/docs/informe_A.md`, sección 1.2.
+**Nota de entorno:** el mundo usa render Ogre v1 (`render_engine ogre`) porque Ogre2 falla en WSL sin GPU. Ver `src/dif_bot/docs/informe_A.md`, sección 1.2.
 
 ## Flujo de trabajo con ramas
 

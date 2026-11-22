@@ -22,24 +22,23 @@ Fuente: `src/dif_bot/urdf/robot.urdf.xacro`, `gz_control.xacro`, `ros2_control.x
 
 **Sensores (Gazebo Fortress)**
 
-| Sensor | Tipo | Link | Topic ROS (bridge) | Frecuencia | Parámetros |
+| Sensor | Tipo | Link | Topic ROS | Frecuencia medida | `header.frame_id` medido |
 |---|---|---|---|---|---|
-| gpu_lidar | gpu_lidar | lidar_link | `/scan` (LaserScan) | 10 Hz | 360 muestras, rango 0.12–8 m |
-| imu | imu | imu_link | `/imu` (Imu) | 100 Hz | — |
-| camera | camera | camera_link | `/camera/image_raw` (Image) | 10 Hz | 320x240 |
+| gpu_lidar | gpu_lidar | lidar_link | `/scan` (LaserScan) | 10 Hz | `lidar_link` |
+| imu | imu | imu_link | `/imu` (Imu) | 100 Hz | `imu_link` |
+| camera | camera | camera_link | `/camera/image_raw` (Image) | 10 Hz | `camera_link` |
+
+Los frames de sensores se fijan con `<ignition_frame_id>` en el URDF (añadido en esta corrección; el frame resultante se midió, ver tabla).
 
 **Frames**
 
-| Frame | Rol |
-|---|---|
-| `odom` | Padre de la odometría (`header.frame_id` de `/odom`). |
-| `base_footprint` | Proyección en el suelo del robot (link vacío). |
-| `base_link` | Frame del robot; `child_frame_id` de la odometría. Está a 0.05 m sobre base_footprint. |
-| `left_wheel_link`, `right_wheel_link` | Ruedas (cilindro r=0.05). |
-| `caster_link` | Rueda loca (esfera r=0.025, fricción 0). |
-| `lidar_link`, `imu_link`, `camera_link` | Sensores. |
-
-Verificado en ejecución (sin sensores, ver 1.2): `odom` → `base_link` en `/tf`. **El `frame_id` de los mensajes de `/scan`, `/imu` y `/camera/image_raw` NO VERIFICADO**: la simulación con sensores no arranca en este equipo (ver 1.2).
+| Frame | Rol | Verificado |
+|---|---|---|
+| `odom` | Padre de la odometría | Sí: `header.frame_id` de `/odom` (modo sin ros2_control) |
+| `base_footprint` | Proyección en el suelo (link vacío) | Árbol de `robot_state_publisher` |
+| `base_link` | Frame del robot; `child_frame_id` de `/odom` | Sí (`/odom` y `/tf`) |
+| `left_wheel_link`, `right_wheel_link`, `caster_link` | Ruedas y rueda loca | Árbol de `robot_state_publisher` |
+| `lidar_link`, `imu_link`, `camera_link` | Sensores | Sí (`header.frame_id` de cada topic) |
 
 ### 1.2 Lanzamiento sin ros2_control
 
@@ -53,35 +52,30 @@ source install/setup.bash
 ros2 launch dif_bot sim.launch.py use_ros2_control:=false headless:=true
 ```
 
-**Resultado real**
+**Problema encontrado y solución**
 
-- `xacro urdf/robot.urdf.xacro use_ros2_control:=false`: sin error. `check_urdf`: "Successfully Parsed XML", 8 links.
-- `colcon build --symlink-install`: OK (paquete `dif_bot`).
-- Lanzamiento completo: **Gazebo termina con código 134** al spawnear el robot (`terminate called ... Ogre::UnimplementedException ... GL3PlusTextureGpu::copyTo`). El crash viene del render de Ogre2 que usan los sensores. Se reprodujo con cada sensor por separado (sin lidar y sin cámara también crashea), y **sin ningún sensor el robot se carga bien**. Es un problema del entorno (WSL sin GPU real), no del URDF. `--headless-rendering` (EGL) es necesario para que el servidor arranque sin pantalla.
-- Por tanto, los topics de sensores (`/scan`, `/imu`, `/camera/image_raw`) **NO VERIFICADO: falla el render en WSL**.
+- Con el render `ogre2` del plugin Sensors del mundo, Gazebo terminaba al spawnear el robot: `terminate called ... Ogre::UnimplementedException ... GL3PlusTextureGpu::copyTo`. Reproducido con el launch real. Sin ningún sensor el robot carga bien, y cada sensor por separado también crashea con ogre2. Es el backend GL3+ de Ogre2 en este WSL sin GPU real.
+- **Solución aplicada:** `<render_engine>ogre</render_engine>` (Ogre v1) en `worlds/empty_world.sdf`. Con esto los sensores publican. Se mantiene `--headless-rendering` (EGL) en el modo `headless:=true`, necesario para arrancar el servidor sin ventana.
+- Esto es un cambio de configuración, no un parche: Ogre v1 es el motor de render que soporta la cámara y el lidar en este entorno. No se ha probado en un equipo con GPU real.
 
-**Verificación de la parte no visual** (mismo URDF sin los tres sensores, mismo bridge, gz en modo servidor; harness de diagnóstico en el equipo, no es el launch final):
-
-```bash
-ros2 topic list
-ros2 topic hz /odom
-ros2 topic info /odom -v
-ros2 node list
-ros2 topic delay /odom
-```
+**Resultado real** (launch completo, `headless:=true`, `use_ros2_control:=false`)
 
 | Comando | Resultado |
 |---|---|
-| `ros2 topic list` | `/clock /cmd_vel /joint_states /odom /tf /tf_static /robot_description ...` |
-| `ros2 topic hz /odom` | **50 Hz** (media 49.99–50.00, min/max 0.020 s) |
-| `ros2 topic info /odom -v` | 1 publisher: nodo `ros_gz_bridge`, tipo `nav_msgs/msg/Odometry` |
-| `ros2 node list` | `/robot_state_publisher`, `/ros_gz_bridge` |
-| frames de `/odom` | `header.frame_id` = `odom`, `child_frame_id` = `base_link` |
+| `ros2 topic hz /scan` | 10.02 Hz |
+| `ros2 topic hz /imu` | 100.01 Hz |
+| `ros2 topic hz /camera/image_raw` | 10.00 Hz |
+| `ros2 topic hz /odom` | 49.99 Hz |
+| `ros2 topic echo /scan --once --field header.frame_id` | `lidar_link` |
+| `ros2 topic echo /imu --once --field header.frame_id` | `imu_link` |
+| `ros2 topic echo /camera/image_raw --once --field header.frame_id` | `camera_link` |
+| `ros2 topic echo /odom --once` (`header.frame_id`, `child_frame_id`) | `odom`, `base_link` |
 | `/tf` | `odom` → `base_link` |
-| `/joint_states` | `['left_wheel_joint', 'right_wheel_joint']` |
-| prueba de movimiento | `/cmd_vel` con x=0.2 m/s durante 4 s → `pose.position.x` ≈ 0.83 m |
+| prueba de movimiento: `/cmd_vel` a 0.2 m/s durante 5 s | `pose.position.x` pasa de ≈ 0 a 1.03 m |
 
-Nota: `ros2 topic delay` no dio una lectura interpretable en nuestra ejecución (el promedio de retardo salió como un valor absoluto de tiempo). Queda para medir en pantalla.
+Notas:
+- `ros2 topic delay /odom` no dio una lectura interpretable en nuestra ejecución (el retardo medio salió como un valor absoluto de tiempo). **Queda sin medir.**
+- Los números de `pose.position.x` son una sola corrida; ver 1.5.
 
 ### 1.3 Lanzamiento con ros2_control
 
@@ -89,7 +83,7 @@ Nota: `ros2 topic delay` no dio una lectura interpretable en nuestra ejecución 
 
 ```bash
 ros2 launch dif_bot sim.launch.py use_ros2_control:=true headless:=true
-# en otra terminal:
+# en otra terminal, con el launch ya en marcha:
 ros2 control load_controller --set-state active joint_state_broadcaster
 ros2 control load_controller --set-state active diff_drive_controller
 ros2 topic list
@@ -98,64 +92,92 @@ ros2 topic info /diff_drive_controller/odom -v
 ros2 node list
 ```
 
-**Resultado real**
+**Resultado real** (launch completo, `headless:=true`, `use_ros2_control:=true`)
 
-- `xacro ... use_ros2_control:=true` y `check_urdf`: sin error (bloque `<ros2_control name="IgnitionSystem">` y `<gazebo>` con `ign_ros2_control-system` presentes).
-- El plugin `ign_ros2_control-system` **carga** (el `LD_LIBRARY_PATH` no basta; el launch añade `IGN_GAZEBO_SYSTEM_PLUGIN_PATH` con las `lib` de `AMENT_PREFIX_PATH`). El paquete instalado avisa de que el nombre se ha renombrado a `gz_ros2_control` (`gz_ros2_control/GazeboSimSystem`, `gz_ros2_control-system`). Se mantienen los nombres de la especificación; hay que decidir si migrar.
-- Lanzamiento completo: **mismo crash de Ogre2** que en 1.2, al spawnear el robot con sensores.
-- Con el harness sin sensores: `joint_state_broadcaster` y `diff_drive_controller` cargan en estado **active**. Nodos: `/controller_manager`, `/diff_drive_controller`, `/gz_ros2_control`, `/joint_state_broadcaster`.
-- **La odometría NO se publica en `/odom`**, sino en `/diff_drive_controller/odom` (50 Hz, 1 publisher). El `cmd_vel` del controlador se escucha en `/diff_drive_controller/cmd_vel_unstamped`, no en `/cmd_vel`. Un remapeo en el launch no es posible porque el controller_manager corre dentro del proceso de Gazebo. Para tener `/odom` y `/cmd_vel` hace falta un relay (`topic_tools`), que **no está instalado** en el equipo.
-- Prueba de movimiento: publicando 0.2 m/s en `/diff_drive_controller/cmd_vel_unstamped` durante 4 s, `pose.position.x` pasa a ≈ 0.92 m.
-- `/tf`: `odom` → `base_link` (publicado por el controlador, `enable_odom_tf: true`).
+- Ambos controladores cargan en estado **active**: `Successfully loaded controller joint_state_broadcaster into state active` y `... diff_drive_controller into state active`.
+- Nodos: `/controller_manager`, `/diff_drive_controller`, `/gz_ros2_control`, `/joint_state_broadcaster`, `/robot_state_publisher`, `/ros_gz_bridge`.
+- Topics de sensores: `/scan` 10.00 Hz, `/imu` 99.99 Hz, `/camera/image_raw` 9.97 Hz, con frames `lidar_link`, `imu_link`, `camera_link`.
+- **La odometría NO está en `/odom`.** Está en `/diff_drive_controller/odom` (49.99 Hz). El comando NO va a `/cmd_vel`: el controlador escucha en `/diff_drive_controller/cmd_vel_unstamped`.
+- `/tf`: `odom` → `base_link`, publicado por el controlador (`enable_odom_tf: true`).
+- Movimiento: publicando 0.2 m/s en `/diff_drive_controller/cmd_vel_unstamped`, `pose.position.x` pasa de ≈ 0 a 0.94 m.
+- **No verificado:** el `header.frame_id` de `/diff_drive_controller/odom` en una lectura individual (en las dos corridas el primer mensaje se perdió por un aviso de `ros2 topic echo`). El `odom`→`base_link` sí está verificado en `/tf`.
+- El bridge de ros_gz en este modo **no** trae `/cmd_vel` ni `/odom` (solo `/clock`, `/scan`, `/imu`, `/camera/image_raw`).
 
-> **[OBSERVACIÓN PENDIENTE DE DANIELA]** Confirmar en pantalla (cuando el render funcione) que el robot se mueve igual en ambos modos con el mismo `cmd_vel`.
+**Nota sobre el paquete `ign_ros2_control`:** la versión instalada (0.7.21) avisa de que el plugin está renombrado a `gz_ros2_control` (`gz_ros2_control/GazeboSimSystem` y `gz_ros2_control-system`). Se mantienen los nombres de la especificación; funcionan con aviso. Pendiente de decidir si migrar.
+
+> **[OBSERVACIÓN PENDIENTE DE DANIELA]** Confirmar en pantalla que el robot se mueve igual en ambos modos con el mismo `cmd_vel` (en ros2_control, con el topic `/diff_drive_controller/cmd_vel_unstamped`).
 
 ### 1.4 ¿Qué controlador genera la odometría?
 
 Borrador basado en el código y en lo medido:
 
-- **Sin ros2_control** (`use_ros2_control:=false`): la odometría la genera el plugin nativo de Gazebo `gz::sim::systems::DiffDrive` (definido en `urdf/gz_control.xacro`). Publica en el topic gz `odom` con frame `odom` y `child_frame_id` `base_link`, y el bridge lo expone como `/odom`. Frecuencia configurada: 50 Hz. Lee `cmd_vel` de Gazebo y publica `/tf`.
-- **Con ros2_control** (`use_ros2_control:=true`): la odometría la genera el controlador `diff_drive_controller` (DiffDriveController de ros2_control), cargado en el `controller_manager` que corre dentro de Gazebo mediante `ign_ros2_control`. Publica en `/diff_drive_controller/odom` (50 Hz) según `config/controllers.yaml`.
+- **Sin ros2_control** (`use_ros2_control:=false`): la odometría la genera el plugin nativo de Gazebo `gz::sim::systems::DiffDrive` (definido en `urdf/gz_control.xacro`). Publica en el topic gz `odom` con frame `odom` y `child_frame_id` `base_link`, y el bridge lo expone como `/odom` (publisher: `ros_gz_bridge`). Lee `cmd_vel` de Gazebo.
+- **Con ros2_control** (`use_ros2_control:=true`): la odometría la genera el controlador `diff_drive_controller` (DiffDriveController de ros2_control), cargado en el `controller_manager` que corre dentro de Gazebo mediante el plugin `ign_ros2_control`. Publica en `/diff_drive_controller/odom` según `config/controllers.yaml`.
 
-Ambos calculan la odometría a partir de `wheel_separation` = 0.3 y `wheel_radius` = 0.05.
+Ambos calculan la odometría a partir de `wheel_separation` = 0.3 m y `wheel_radius` = 0.05 m.
 
 > **[OBSERVACIÓN PENDIENTE DE DANIELA]** Comparar en pantalla la odometría de ambos modos tras la misma trayectoria y anotar la diferencia.
 
-Medición de referencia (completar):
+Comandos de medición (completar):
 
 ```bash
-ros2 topic info /odom -v                # sin ros2_control
+ros2 topic info /odom -v                         # sin ros2_control
 ros2 topic info /diff_drive_controller/odom -v   # con ros2_control
 ros2 node list
 ```
 
-Publishers observados: sin ros2_control `ros_gz_bridge` (1); con ros2_control `/diff_drive_controller` (ver 1.3).
+Publishers observados: sin ros2_control, `ros_gz_bridge` (1 publisher en `/odom`); con ros2_control, `/diff_drive_controller` (ver 1.3).
 
 ### 1.5 Estabilidad y latencia
 
-Borrador (solo lo medido en este equipo, sin sensores):
+Solo lo medido (sin datos de la simulación en pantalla):
 
-- Frecuencia de `/odom` (sin ros2_control): 50 Hz estables (desviación estándar ≈ 0.00005 s).
-- Frecuencia de `/diff_drive_controller/odom` (con ros2_control): 50 Hz estables (desviación estándar ≈ 0.00012 s).
+**Frecuencia (`ros2 topic hz`)**
 
-> **[OBSERVACIÓN PENDIENTE DE DANIELA]** Medir con la simulación completa (con sensores) y completar:
+| Corrida | Topic | Media | Desviación típica (rango) |
+|---|---|---|---|
+| sin ros2_control (launch real) | `/odom` | 49.99 Hz | — |
+| sin ros2_control (harness sin sensores) | `/odom` | 49.95–50.00 Hz | 0.00004–0.00023 s |
+| con ros2_control (harness sin sensores) | `/diff_drive_controller/odom` | 49.90–50.00 Hz | 0.00008–0.00030 s |
+| con ros2_control (launch real) | `/diff_drive_controller/odom` | 49.99 Hz | — |
+
+Fuentes de las desviaciones (salidas guardadas en el scratchpad del equipo): `harness_false.out` y `harness_false2.out` para el modo sin ros2_control; `harness_true.out` y `harness_true2.out` para el modo con ros2_control. Los launches reales no capturaron la desviación.
+
+**Movimiento tras publicar `cmd_vel` a 0.2 m/s** (lectura de `pose.position.x`; el publish dura `timeout 5`, es decir ≈ 5 s, y la lectura se hace después):
+
+| Corrida | Topic de comando | x antes | x después |
+|---|---|---|---|
+| sin ros2_control, harness (`harness_false.out`) | `/cmd_vel` | no leído | 0.831 m |
+| sin ros2_control, harness (`harness_false2.out`) | `/cmd_vel` | −1.8e-15 | 1.04 m |
+| sin ros2_control, launch real | `/cmd_vel` | −1.8e-15 | 1.034 m |
+| con ros2_control, harness (`harness_true.out`) | `/diff_drive_controller/cmd_vel_unstamped` | no leído | 0.92 m |
+| con ros2_control, harness (`harness_true2.out`) | `/diff_drive_controller/cmd_vel_unstamped` | −1.8e-15 | 0.94 m |
+| con ros2_control, launch real | `/diff_drive_controller/cmd_vel_unstamped` | −1.8e-15 | 0.94 m |
+
+Lectura: con la misma velocidad comandada, el desplazamiento medido varía entre 0.83 y 1.04 m sin ros2_control, y entre 0.92 y 0.94 m con ros2_control. La causa de la variación no está determinada: puede venir del arranque y la aceleración del robot y del tiempo entre la publicación y la lectura. No se ha calculado un valor teórico para comparar.
+
+**Harness vs launch real.** El harness (`/tmp/.../scratchpad/harness.sh`) bridgeaba `/cmd_vel` en los dos modos. El launch real **no** bridgea `/cmd_vel` con ros2_control: allí el comando es `/diff_drive_controller/cmd_vel_unstamped`. Los valores del harness con ros2_control se han medido sobre ese topic.
+
+**Retardo** (`ros2 topic delay`): sin medir (ver 1.2).
+
+> **[OBSERVACIÓN PENDIENTE DE DANIELA]** Medir con la simulación en pantalla y completar:
 
 ```bash
-ros2 topic hz /odom                       # sin ros2_control: ____ Hz
-ros2 topic hz /diff_drive_controller/odom # con ros2_control: ____ Hz
-ros2 topic delay /odom                    # retardo medio: ____ s (requiere header.stamp; Odometry lo tiene)
-ros2 topic delay /diff_drive_controller/odom
+ros2 topic hz /odom                          # sin ros2_control: ____ Hz
+ros2 topic hz /diff_drive_controller/odom    # con ros2_control: ____ Hz
+ros2 topic delay /odom                       # retardo medio: ____ s
+ros2 topic delay /diff_drive_controller/odom # retardo medio: ____ s
 ```
 
 ### 1.6 ¿Cuál es más adecuado para un robot real?
 
-Borrador (razonamiento, no medido):
+Razonamiento, **no medido**:
 
 - El plugin nativo de Gazebo (`DiffDrive`) es una herramienta de simulación: no tiene interfaz con hardware real ni parámetros de calidad de odometría configurables desde ROS.
-- `ros2_control` separa el hardware (interfaz de encoders y motores) del controlador (`diff_drive_controller`). El mismo controlador sirve en simulación y en el robot real cambiando solo el hardware. Además expone `cmd_vel_timeout`, `open_loop` y covarianzas de odometría.
-- Por eso, para un robot real, el enfoque con ros2_control es el más adecuado. Coste: más configuración (plugin, `controller_manager`, carga manual de controladores) y los topics quedan bajo `/diff_drive_controller/`.
+- `ros2_control` separa el hardware (encoders y motores) del controlador (`diff_drive_controller`). El mismo controlador puede usarse en simulación y en el robot real cambiando solo la interfaz de hardware. Además expone `cmd_vel_timeout`, `open_loop` y parámetros de odometría.
+- Por tanto, para un robot real, el enfoque con ros2_control parece el más adecuado. Coste: más configuración (plugin, `controller_manager`, carga manual de controladores), y los topics quedan bajo `/diff_drive_controller/`.
 
-> **[OBSERVACIÓN PENDIENTE DE DANIELA]** Validar esta conclusión con sus resultados de 1.4 y 1.5 cuando tenga la simulación con sensores funcionando.
+> **[OBSERVACIÓN PENDIENTE DE DANIELA]** Validar esta conclusión con sus resultados de 1.4 y 1.5 cuando tenga la simulación en pantalla.
 
 ## Práctica 2: EKF
 <!-- TODO -->
