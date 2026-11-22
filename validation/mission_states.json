@@ -1,0 +1,55 @@
+[
+  {
+    "state": "waiting_for_nav2"
+  },
+  {
+    "state": "canceled"
+  },
+  {
+    "state": "waiting_for_nav2"
+  },
+  {
+    "state": "navigating",
+    "waypoint": 1,
+    "name": "sur",
+    "total": 4
+  },
+  {
+    "state": "waypoint_reached",
+    "waypoint": 1
+  },
+  {
+    "state": "navigating",
+    "waypoint": 2,
+    "name": "suroeste",
+    "total": 4
+  },
+  {
+    "state": "waypoint_reached",
+    "waypoint": 2
+  },
+  {
+    "state": "navigating",
+    "waypoint": 3,
+    "name": "oeste",
+    "total": 4
+  },
+  {
+    "state": "waypoint_reached",
+    "waypoint": 3
+  },
+  {
+    "state": "navigating",
+    "waypoint": 4,
+    "name": "origen",
+    "total": 4
+  },
+  {
+    "state": "waypoint_reached",
+    "waypoint": 4
+  },
+  {
+    "state": "succeeded",
+    "completed": 4
+  }
+]

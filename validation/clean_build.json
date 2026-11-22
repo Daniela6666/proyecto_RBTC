@@ -1,0 +1,9 @@
+{
+  "source_commit": "a43e1b1164f5e8349064087ec6de5badc5c859d4",
+  "clean_checkout": true,
+  "fresh_operating_system": false,
+  "colcon_build_exit": 0,
+  "unittest_exit": 0,
+  "bringup_show_args_exit": 0,
+  "environment": "Ubuntu 22.04 / ROS 2 Humble / Gazebo Fortress"
+}

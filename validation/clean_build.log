@@ -1,0 +1,82 @@
+Cloning into '/tmp/rbtc-clean-TqMVAA'...
+done.
+Starting >>> dif_bot
+Finished <<< dif_bot [1.26s]
+
+Summary: 1 package finished [1.83s]
+test_invalid (test_waypoints.WaypointValidation) ... ok
+test_valid (test_waypoints.WaypointValidation) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.014s
+
+OK
+Arguments (pass arguments as '<name>:=<value>'):
+
+    'headless':
+        no description given
+        (default: 'false')
+
+    'use_ekf':
+        no description given
+        (default: 'true')
+
+    'map':
+        no description given
+        (default: '/tmp/rbtc-clean-TqMVAA/install/dif_bot/share/dif_bot/maps/rbtc_room.yaml')
+
+    'lidar_noise':
+        no description given
+        (default: '0.01')
+
+    'use_ros2_control':
+        true: hardware ign_ros2_control; false: DiffDrive nativo de Gazebo
+        (default: 'false')
+
+    'world':
+        Archivo del mundo dentro de worlds/
+        (default: 'rbtc_room.sdf')
+
+    'use_sim_time':
+        Usar el reloj de simulacion (/clock)
+        (default: 'true')
+
+    'odom_topic':
+        Odometria de entrada. Con ros2_control: /diff_drive_controller/odom
+        (default: '/odom')
+
+    'use_imu':
+        false: el EKF ignora la IMU (imu0_config todo False)
+        (default: 'true')
+
+    'launch_static_map_odom':
+        true: publica map->odom identidad (provisional). false si SLAM/AMCL ya publican map->odom
+        (default: 'true')
+
+    'namespace':
+        Top-level namespace
+        (default: '')
+
+    'params_file':
+        Full path to the ROS2 parameters file to use for all launched nodes
+        (default: '/opt/ros/humble/share/nav2_bringup/params/nav2_params.yaml')
+
+    'autostart':
+        Automatically startup the nav2 stack
+        (default: 'true')
+
+    'use_composition':
+        Use composed bringup if True
+        (default: 'False')
+
+    'container_name':
+        the name of conatiner that nodes will load in if use composition
+        (default: 'nav2_container')
+
+    'use_respawn':
+        Whether to respawn if a node crashes. Applied when composition is disabled.
+        (default: 'False')
+
+    'log_level':
+        log level
+        (default: 'info')

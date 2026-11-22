@@ -68,7 +68,7 @@ def main():
         if not start.success:raise RuntimeError(start.message)
         wait_status('succeeded',offset,600)
         result['mission']=next(s for s in reversed(states) if s.get('state')=='succeeded')
-        result['robot']='robot.urdf.xacro';result['map']='rbtc_room.yaml';result['noise_stddev_m']=.01
+        result['use_ekf']=True;result['robot']='robot.urdf.xacro';result['map']='rbtc_room.yaml';result['noise_stddev_m']=.01
         (OUT/'navigation.json').write_text(json.dumps(result,indent=2))
         (OUT/'mission_states.json').write_text(json.dumps(states,indent=2))
         log('RESULT',result)
