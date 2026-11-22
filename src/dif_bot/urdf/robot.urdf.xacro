@@ -2,6 +2,8 @@
 <robot name="dif_bot" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <xacro:arg name="use_ros2_control" default="false"/>
+  <!-- true: el TF odom->base_link lo publica el EKF (robot_localization); la odometria de rueda no lo publica -->
+  <xacro:arg name="use_ekf" default="false"/>
 
   <!-- ===================== Estructura ===================== -->
 

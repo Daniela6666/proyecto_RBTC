@@ -18,6 +18,7 @@ from launch_ros.substitutions import FindPackageShare
 
 def launch_setup(context, *args, **kwargs):
     use_ros2_control = LaunchConfiguration('use_ros2_control').perform(context).lower() == 'true'
+    use_ekf = LaunchConfiguration('use_ekf').perform(context).lower() == 'true'
     headless = LaunchConfiguration('headless').perform(context).lower() == 'true'
     world = LaunchConfiguration('world').perform(context)
 
@@ -41,12 +42,13 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
     )
 
-    # Mismo xacro para ambos modos; cambia solo el argumento use_ros2_control
+    # Mismo xacro para ambos modos; cambian los argumentos use_ros2_control y use_ekf
     robot_description = ParameterValue(
         Command([
             FindExecutable(name='xacro'), ' ',
             PathJoinSubstitution([FindPackageShare('dif_bot'), 'urdf', 'robot.urdf.xacro']),
             ' use_ros2_control:=', LaunchConfiguration('use_ros2_control'),
+            ' use_ekf:=', LaunchConfiguration('use_ekf'),
         ]),
         value_type=str,
     )
@@ -70,9 +72,11 @@ def launch_setup(context, *args, **kwargs):
         bridge_args += [
             '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
             '/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
-            '/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
             '/joint_states@sensor_msgs/msg/JointState[gz.msgs.Model',
         ]
+        # /tf (TF odom->base_link del plugin) solo sin EKF; con EKF lo publica ekf_filter_node
+        if not use_ekf:
+            bridge_args.append('/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V')
 
     bridge = Node(
         package='ros_gz_bridge',
@@ -100,6 +104,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_ros2_control', default_value='false',
             description='true: hardware ign_ros2_control; false: DiffDrive nativo de Gazebo',
+        ),
+        DeclareLaunchArgument(
+            'use_ekf', default_value='false',
+            description='true: el EKF (ekf.launch.py) publica odom->base_link; la odometria de rueda no publica ese TF',
         ),
         DeclareLaunchArgument(
             'world', default_value='empty_world.sdf',

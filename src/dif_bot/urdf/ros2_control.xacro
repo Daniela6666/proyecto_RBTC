@@ -27,7 +27,13 @@
 
     <gazebo>
       <plugin filename="ign_ros2_control-system" name="ign_ros2_control::IgnitionROS2ControlPlugin">
-        <parameters>$(find dif_bot)/config/controllers.yaml</parameters>
+        <!-- Con EKF: controllers_ekf.yaml (enable_odom_tf false); sin EKF: controllers.yaml (sin cambios) -->
+        <xacro:if value="$(arg use_ekf)">
+          <parameters>$(find dif_bot)/config/controllers_ekf.yaml</parameters>
+        </xacro:if>
+        <xacro:unless value="$(arg use_ekf)">
+          <parameters>$(find dif_bot)/config/controllers.yaml</parameters>
+        </xacro:unless>
       </plugin>
     </gazebo>
   </xacro:if>

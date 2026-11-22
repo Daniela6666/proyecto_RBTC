@@ -13,7 +13,15 @@
         <odom_topic>odom</odom_topic>
         <frame_id>odom</frame_id>
         <child_frame_id>base_link</child_frame_id>
-        <tf_topic>/tf</tf_topic>
+        <!-- Sin EKF: el TF odom->base_link sale por /tf (se bridgea).
+             Con EKF: el TF lo publica ekf_filter_node; este plugin lo manda a un topic gz
+             que NO se bridgea, asi no hay dos publicadores de odom->base_link. -->
+        <xacro:if value="$(arg use_ekf)">
+          <tf_topic>/model/dif_bot/tf_ekf_disabled</tf_topic>
+        </xacro:if>
+        <xacro:unless value="$(arg use_ekf)">
+          <tf_topic>/tf</tf_topic>
+        </xacro:unless>
         <odom_publisher_frequency>50</odom_publisher_frequency>
       </plugin>
 
