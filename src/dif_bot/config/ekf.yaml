@@ -46,7 +46,7 @@ ekf_filter_node:
     odom0_queue_size: 10
 
     # ---------------------------------------------------------------
-    # imu0: IMU de Gazebo (/imu, sensor_msgs/Imu, frame imu_link, 100 Hz).
+    # imu0: IMU de Gazebo (/imu, sensor_msgs/Imu, frame imu_link, 50 Hz).
     # Se fusiona solo vyaw (velocidad angular alrededor de z): medida directa del giro.
     # NO se fusiona yaw (orientacion absoluta). Tras corregir el chasis (informe 2.1)
     # el yaw de /imu sigue al giro real de gz, pero gz no publica covarianza de
