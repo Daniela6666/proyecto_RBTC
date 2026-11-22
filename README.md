@@ -10,7 +10,7 @@ Simulación de un robot diferencial (`dif_bot`) en Gazebo Fortress con ROS 2 Hum
 
 ## Mundo
 
-Pendiente de definir.
+Mundo `empty_world` (`src/dif_bot/worlds/empty_world.sdf`): suelo (`ground_plane`), luz `sun` y 3 cajas estáticas como obstáculos para el lidar.
 
 ## Dependencias
 
@@ -23,14 +23,18 @@ sudo apt-get install -y ros-humble-nav2-bringup ros-humble-slam-toolbox ros-humb
 
 ```
 src/dif_bot/
-├── config/     # parámetros (YAML)
+├── urdf/       # robot.urdf.xacro, gz_control.xacro, ros2_control.xacro
+├── worlds/     # empty_world.sdf
+├── rviz/       # dif_bot.rviz
+├── config/     # controllers.yaml
 ├── maps/       # mapas
-├── launch/     # launch files
+├── launch/     # sim.launch.py
 ├── docs/       # informes
-└── README_PAQUETE.md
+├── package.xml
+└── CMakeLists.txt
 ```
 
-El paquete `dif_bot` real (urdf/, worlds/, package.xml, CMakeLists.txt, launch/sim.launch.py) se copia en `src/dif_bot/` según `README_PAQUETE.md`. Sin ese paquete no compila ni lanza.
+El paquete `dif_bot` (robot diferencial, mundo y launch) es **propio del equipo**, no es material de la cátedra: se generó aquí y compila con `colcon build`.
 
 ## Cómo compilar
 
@@ -42,12 +46,23 @@ source install/setup.bash
 
 ## Cómo lanzar
 
-Requiere el paquete dif_bot real en `src/dif_bot/`.
-
 ```bash
 ros2 launch dif_bot sim.launch.py use_ros2_control:=false
 ros2 launch dif_bot sim.launch.py use_ros2_control:=true
 ```
+
+Argumentos: `use_ros2_control` (false por defecto), `world` (`empty_world.sdf` por defecto) y `headless` (false por defecto; `true` arranca el servidor sin ventana con render EGL).
+
+Con `use_ros2_control:=true` el launch **no carga controladores**. Hay que cargarlos a mano con el launch ya en marcha:
+
+```bash
+ros2 control load_controller --set-state active joint_state_broadcaster
+ros2 control load_controller --set-state active diff_drive_controller
+```
+
+Con ros2_control la odometría sale en `/diff_drive_controller/odom` y el comando se envía a `/diff_drive_controller/cmd_vel_unstamped` (no a `/odom` ni `/cmd_vel`).
+
+**Aviso de entorno:** en WSL sin GPU, Gazebo termina al spawnear el robot por un fallo de render de Ogre2 de los sensores (lidar y cámara). Ver `src/dif_bot/docs/informe_A.md`, sección 1.2.
 
 ## Flujo de trabajo con ramas
 
