@@ -25,7 +25,7 @@ def launch_setup(context, *args, **kwargs):
     world_path = os.path.join(pkg_share, 'worlds', world)
 
     # headless: solo servidor, render por EGL (sin ventana); sin esto el render falla en WSL sin GPU
-    gz_args = f'-r {"-s --headless-rendering " if headless else ""}{world_path}'
+    gz_args = f'-r {"-s  " if headless else ""}{world_path}'
 
     gz_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -49,6 +49,7 @@ def launch_setup(context, *args, **kwargs):
             PathJoinSubstitution([FindPackageShare('dif_bot'), 'urdf', 'robot.urdf.xacro']),
             ' use_ros2_control:=', LaunchConfiguration('use_ros2_control'),
             ' use_ekf:=', LaunchConfiguration('use_ekf'),
+            ' lidar_noise:=', LaunchConfiguration('lidar_noise'),
         ]),
         value_type=str,
     )
@@ -97,6 +98,7 @@ def generate_launch_description():
     plugin_path = os.pathsep.join([p for p in lib_paths + [existing] if p])
 
     return LaunchDescription([
+        DeclareLaunchArgument('lidar_noise', default_value='0.01'),
         DeclareLaunchArgument(
             'use_ros2_control', default_value='false',
             description='true: hardware ign_ros2_control; false: DiffDrive nativo de Gazebo',

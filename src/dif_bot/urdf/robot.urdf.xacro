@@ -9,6 +9,7 @@
 
   <xacro:arg name="use_ros2_control" default="false"/>
   <xacro:arg name="use_ekf" default="false"/>
+  <xacro:arg name="lidar_noise" default="0.01"/>
 
   <!-- ===================== Cuerpo ===================== -->
   <link name="base_link">
@@ -157,7 +158,7 @@
         <noise>
           <type>gaussian</type>
           <mean>0</mean>
-          <stddev>0.01</stddev>
+          <stddev>$(arg lidar_noise)</stddev>
         </noise>
       </lidar>
     </sensor>
