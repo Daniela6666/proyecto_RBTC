@@ -72,8 +72,8 @@ Con ros2_control la odometría NO está en `/odom` y el comando NO va a `/cmd_ve
 
 ## Reparto
 
-| Persona | Responsable | Prácticas |
-|---|---|---|
-| A | Daniela Molina | Prácticas 1 y 2 |
-| B | Tomás Alvares | Prácticas 3 y 4 |
-| C | Santiago Chacón | Práctica 5 y Proyecto Final |
+| Responsable | Prácticas |
+|---|---|
+| Daniela Molina | Prácticas 1 y 2 |
+| Tomás Alvares | Prácticas 3 y 4 |
+| Santiago Chacón | Práctica 5 y Proyecto Final |

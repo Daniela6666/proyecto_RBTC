@@ -1,4 +1,4 @@
-# nav2_params.yaml (Persona C: Santiago Chacón) - Nav2 Humble para dif_bot.
+# nav2_params.yaml (Santiago Chacón) - Nav2 Humble para dif_bot.
 # Base: /opt/ros/humble/share/nav2_bringup/params/nav2_params.yaml, ajustado
 # con lo medido en la simulación (use_ros2_control:=true):
 #   base frame: base_link   (TF: odom -> base_link; base_footprint queda suelto)

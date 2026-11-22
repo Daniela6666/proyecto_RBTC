@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Persona C (Santiago Chacón).
+"""Santiago Chacón.
 
 Reenvía /cmd_vel (salida de Nav2) al topic que escucha diff_drive_controller.
 

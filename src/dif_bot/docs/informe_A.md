@@ -1,4 +1,4 @@
-# Informe Persona A: Daniela Molina
+# Informe de Daniela Molina
 
 > El robot `dif_bot` y el mundo `empty_world` fueron **generados por el equipo** (no son material de la cátedra). Se usan como base para las prácticas.
 

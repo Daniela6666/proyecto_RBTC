@@ -1,4 +1,4 @@
-# Waypoints de la misión (Persona C: Santiago Chacón). Frame: map (con SLAM, map = pose inicial del robot).
+# Waypoints de la misión (Santiago Chacón). Frame: map (con SLAM, map = pose inicial del robot).
 # Mundo empty_world: cajas de 1x1 m en (2, 0), (0, 2.5) y (-2, -1.5).
 # Los puntos están dentro de la zona que cubre el mapa de SLAM (aprox.
 # x -2.5..1.5, y -2..2: solo hay mapa donde el láser golpea las cajas) y a

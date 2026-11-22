@@ -1,14 +1,14 @@
-# Informe Persona C: Santiago Chacón
+# Informe de Santiago Chacón
 
 Práctica 5 (Nav2) y Proyecto Final (nodo de misión). Todo lo que aparece abajo se midió en la simulación real del paquete `dif_bot` (rama `persona-a` como base), con `use_ros2_control:=true`.
 
 ## Entorno de prueba
 
-- ROS 2 Humble + Gazebo Fortress (ign gazebo 6.18) + Nav2 Humble + slam_toolbox, dentro de un contenedor Docker `ros:humble-ros-base`. La máquina de C trae ROS 2 Lyrical, que no tiene `ign_ros2_control` ni Nav2 instalado.
+- ROS 2 Humble + Gazebo Fortress (ign gazebo 6.18) + Nav2 Humble + slam_toolbox, dentro de un contenedor Docker `ros:humble-ros-base`. La máquina de Santiago trae ROS 2 Lyrical, que no tiene `ign_ros2_control` ni Nav2 instalado.
 - Para que funcione en el contenedor sobre WSL2: `IGN_IP=127.0.0.1` (sin esto `ros_gz_sim create` nunca encuentra el servidor de Gazebo) y el socket X de WSLg montado con `DISPLAY=:0` y `LIBGL_ALWAYS_SOFTWARE=1`. El render Ogre v1 del mundo no soporta `--headless-rendering` (EGL) y abortaba con `Couldn't open X display`.
 - Render por software, así que la CPU va saturada (load ~15, factor de tiempo real ~0.9). Esto explica varios de los ajustes de abajo.
 
-## Archivos de C
+## Archivos de esta parte
 
 | Archivo | Qué hace |
 |---|---|
@@ -45,7 +45,7 @@ Medido con `ros2 topic list`, `ros2 topic echo --once` y `tf2_tools view_frames`
 
 Árbol TF medido con ros2_control: `odom → base_link → {lidar_link, imu_link, camera_link, caster_link, left/right_wheel_link}`, y con SLAM `map → odom`.
 
-**`base_footprint` queda desconectado.** El URDF declara `base_footprint → base_link` como joint fijo (robot_state_publisher lo publica en `/tf_static`), pero `diff_drive_controller` publica `odom → base_link`. Como un frame en TF solo puede tener un padre, gana el transform dinámico y `base_footprint` queda fuera del árbol. Por eso Nav2 usa `base_link`. Arreglarlo le corresponde a la Persona A (Daniela Molina): `base_frame_id: base_footprint` en `controllers.yaml`.
+**`base_footprint` queda desconectado.** El URDF declara `base_footprint → base_link` como joint fijo (robot_state_publisher lo publica en `/tf_static`), pero `diff_drive_controller` publica `odom → base_link`. Como un frame en TF solo puede tener un padre, gana el transform dinámico y `base_footprint` queda fuera del árbol. Por eso Nav2 usa `base_link`. Arreglarlo le corresponde a Daniela Molina: `base_frame_id: base_footprint` en `controllers.yaml`.
 
 Radio: el chasis es una caja de 0.40 × 0.25 m centrada en `base_link`, con las ruedas en y = ±0.15 m y 0.03 m de ancho, o sea ±0.165 m. El robot gira sobre el eje de las ruedas (x = 0), así que el radio es la semidiagonal: √(0.20² + 0.165²) ≈ 0.26 m.
 
@@ -136,4 +136,4 @@ Historial de intentos (todos con la misma simulación):
 - La mayoría de los fallos no eran del algoritmo sino de configuración: topics de ros2_control distintos a los de Gazebo (`/diff_drive_controller/odom`, `cmd_vel_unstamped`), un `odom_topic` que faltaba en el controller_server, y el frame `base_footprint` suelto en TF. Conviene revisar `ros2 topic list` y `view_frames` antes de tocar ningún parámetro.
 - El mundo `empty_world` tiene muy pocos obstáculos, así que el mapa de SLAM queda chico (4 × 4 m) y cualquier meta fuera de él no se puede planificar. Con un mundo con paredes (Warehouse o House, como decía el plan) el mapa cubriría toda la zona navegable y no haría falta el costmap global móvil.
 - Sin GPU, el render por software se lleva casi toda la CPU y los lazos de Nav2 no cumplen su frecuencia. En esas condiciones RPP fue claramente más robusto que DWB.
-- Pendiente con el equipo: probar `slam:=false` con el mapa y el `amcl.yaml` de la Persona B (Tomás Alvares), que todavía no están en el repo, y que la Persona A (Daniela Molina) decida si `diff_drive_controller` debe publicar `odom → base_footprint`.
+- Pendiente con el equipo: probar `slam:=false` con el mapa y el `amcl.yaml` de Tomás Alvares, que todavía no están en el repo, y que Daniela Molina decida si `diff_drive_controller` debe publicar `odom → base_footprint`.
