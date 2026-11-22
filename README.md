@@ -45,7 +45,7 @@ Con `use_ros2_control:=false` el robot es funcionalmente el de persona B. El rob
 
 ```bash
 sudo apt-get update && sudo apt-get install -y ros-humble-ign-ros2-control ros-humble-plotjuggler-ros ros-humble-ros2-control ros-humble-ros2-controllers ros-humble-robot-localization ros-humble-xacro ros-humble-rqt-plot ros-humble-tf2-tools
-sudo apt-get install -y ros-humble-nav2-bringup ros-humble-slam-toolbox ros-humble-ros-gz ros-humble-robot-state-publisher ros-humble-teleop-twist-keyboard python3-colcon-common-extensions
+sudo apt-get install -y ros-humble-nav2-bringup ros-humble-slam-toolbox ros-humble-ros-gz ros-humble-robot-state-publisher ros-humble-teleop-twist-keyboard python3-colcon-common-extensions ros-humble-nav2-simple-commander python3-yaml python3-numpy python3-pil
 ```
 
 ## Estructura del repo
@@ -81,12 +81,12 @@ source install/setup.bash
 ros2 launch dif_bot sim.launch.py                                  # DiffDrive de Gazebo, sin EKF
 ros2 launch dif_bot sim.launch.py use_ros2_control:=true           # ros2_control
 ros2 launch dif_bot sim.launch.py use_ekf:=true                    # con EKF
-ros2 launch dif_bot sim.launch.py headless:=true                   # sin ventana (EGL)
+ros2 launch dif_bot sim.launch.py headless:=true                   # sin ventana de Gazebo (requiere display para sensores Ogre)
 ```
 
 Argumentos: `use_ros2_control` (false), `use_ekf` (false), `world` (`rbtc_room.sdf`) y `headless` (false).
 
-**Nota de entorno:** el mundo usa render Ogre v1 (`render_engine ogre`) porque Ogre2 falla en WSL sin GPU (crash al spawnear el robot). Con `headless:=true` se usa `--headless-rendering` (EGL). Ver `src/dif_bot/docs/informe_A.md`, sección 1.2.
+**Nota de entorno:** el mundo usa render Ogre v1 (`render_engine ogre`) porque Ogre2 falla en WSL sin GPU (crash al spawnear el robot). Con headless:=true se ejecuta solo el servidor (-s). Los sensores Ogre conservan el acceso al display de WSLg; no se fuerza EGL. Ver `src/dif_bot/docs/informe_A.md`, sección 1.2.
 
 ## Práctica 1: control y odometría (persona A)
 
@@ -163,6 +163,40 @@ TF: Gazebo publica `odom -> base_link`; SLAM o AMCL publica `map -> odom`. Nunca
 
 Waypoints en `src/dif_bot/config/waypoints.yaml`. `scripts/humble.sh` abre un entorno limpio de Humble; sin argumentos inicia el bringup completo (`bringup.launch.py`: simulación, localización, navegación y misión). Antes cerrar los lanzamientos existentes.
 
+## Inicio completo desde un clon nuevo
+
+Con ROS 2 Humble y las dependencias anteriores instaladas:
+
+~~~bash
+git clone https://github.com/Daniela6666/proyecto_RBTC.git
+cd proyecto_RBTC
+./scripts/humble.sh colcon build --symlink-install
+./scripts/humble.sh
+~~~
+
+El ultimo comando inicia robot, EKF, mapa guardado, AMCL, Nav2 y nodo de mision. El EKF publica odom -> base_link y AMCL map -> odom; no se lanza la transformacion estatica provisional de la practica 2. Para comparar sin EKF: ./scripts/humble.sh ros2 launch dif_bot bringup.launch.py use_ekf:=false.
+
+En otra terminal, desde el repositorio:
+
+~~~bash
+./scripts/humble.sh ros2 run rviz2 rviz2 -d src/dif_bot/config/rbtc.rviz --ros-args -p use_sim_time:=true
+~~~
+
+En RViz, usar 2D Pose Estimate cerca de (0,0), apuntando hacia +X, y verificar que el laser coincida con el mapa. Se pueden enviar metas con Nav2 Goal. Iniciar la ruta solo despues de localizar el robot:
+
+~~~bash
+./scripts/humble.sh ros2 service call /mission/start std_srvs/srv/Trigger '{}'
+./scripts/humble.sh ros2 topic echo /mission/status
+# Cancelacion, desde otra terminal si es necesaria:
+./scripts/humble.sh ros2 service call /mission/cancel std_srvs/srv/Trigger '{}'
+~~~
+
+La respuesta accepted confirma el inicio; el resultado se publica en /mission/status como succeeded, failed, timeout o canceled. Un segundo inicio mientras corre la mision se rechaza. Los cuatro destinos estan en src/dif_bot/config/waypoints.yaml.
+
+Para ejecutar sin ventana de Gazebo: ./scripts/humble.sh ros2 launch dif_bot bringup.launch.py headless:=true. En WSLg debe existir DISPLAY; si Ogre falla, usar LIBGL_ALWAYS_SOFTWARE=1 en el entorno de simulacion. No lanzar dos bringup en el mismo dominio ROS.
+
+Las pruebas reproducibles y sus datos estan en [validation/](validation/README.md). El mapa de entrega es el recorrido lento a 0.2 m/s, con resolucion 0.05 m/celda.
+
 ## Flujo de trabajo con ramas
 
 - `main`: rama estable. Solo se integra por Pull Request.
@@ -173,4 +207,6 @@ Waypoints en `src/dif_bot/config/waypoints.yaml`. `scripts/humble.sh` abre un en
 
 - Simulación, SLAM, AMCL, Nav2 y misión: implementados (ramas de persona B y C).
 - Práctica 1 y 2 (persona A): implementadas en este merge sobre el robot de persona B. Las medidas de la Práctica 1 (`src/dif_bot/docs/informe_A.md`, sección 1) se repitieron con el robot actual el 2026-11-22; las de la Práctica 2 (sección 2) siguen siendo del robot anterior y hay que repetirlas.
-- Pendiente: exploración completa y ensayos P3/P4 (B), video y informe final.
+- B/C verificadas: mapa completo, ensayos SLAM lento/rapido, cuatro condiciones de AMCL, meta individual, recuperaciones, cancelacion y mision de 4/4 puntos con EKF. Datos y comandos en validation/.
+- Compilacion y pruebas unitarias verificadas en un clon limpio, con dependencias instaladas.
+- Video e informe final quedan fuera de esta entrega de codigo.

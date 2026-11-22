@@ -16,3 +16,6 @@ __pycache__/
 *.bag
 *.db3
 rosbag2_*/
+
+# Ensayos descartados del modelo anterior; copia local de diagnostico
+validation/pre_geometry_fix/

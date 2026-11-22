@@ -1,0 +1,42 @@
+{
+  "resolution_m": 0.05,
+  "width": 172,
+  "height": 164,
+  "known_free_space_fraction": 1.0,
+  "occupied_distance_mean_m": 0.029989587386476526,
+  "occupied_distance_p95_m": 0.1049999999999991,
+  "case": "mapping_slow",
+  "speed_m_s": 0.2,
+  "noise_stddev_m": 0.01,
+  "duration_sim_s": 165.381,
+  "route": [
+    [
+      0,
+      -3
+    ],
+    [
+      -3,
+      -3
+    ],
+    [
+      -3,
+      3
+    ],
+    [
+      3,
+      3
+    ],
+    [
+      3,
+      -3
+    ],
+    [
+      0,
+      -3
+    ],
+    [
+      0,
+      0
+    ]
+  ]
+}
