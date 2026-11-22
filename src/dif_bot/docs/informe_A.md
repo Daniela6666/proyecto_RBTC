@@ -180,19 +180,116 @@ Razonamiento, **no medido**:
 > **[OBSERVACIÓN PENDIENTE DE DANIELA]** Validar esta conclusión con sus resultados de 1.4 y 1.5 cuando tenga la simulación en pantalla.
 
 ## Práctica 2: EKF
-<!-- TODO -->
+
+Medidas de esta práctica: mundo `empty_world`, `headless:=true`, Ogre v1, sin ruido en la simulación. Cada cifra viene de una corrida limpia (ver nota de 2.3). Lo que no se ha medido está marcado NO VERIFICADO.
 
 ### 2.1 Sensores fusionados
-<!-- TODO -->
+
+Fuente: `src/dif_bot/config/ekf.yaml`, modo 2D. Orden de los 15 campos de `*_config`: `[x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]`.
+
+| Fuente | Topic | Campos fusionados | Por qué | Campos no fusionados y por qué |
+|---|---|---|---|---|
+| Odometría de rueda | `/odom` (gz DiffDrive) o `/diff_drive_controller/odom` (ros2_control) | `vx`, `vyaw` | La velocidad de las ruedas es la medida directa de avance y de giro. | `x`, `y`, `yaw` de la pose: son una integración de las ruedas y acumulan deriva; fusionarlos heredaría esa deriva. |
+| IMU | `/imu` (`sensor_msgs/Imu`, frame `imu_link`, 100 Hz) | `vyaw` | Es la única medida de giro que aporta la IMU. | `yaw` absoluto: no lo aporta en esta simulación (ver hallazgo). `ax`: es ruidosa y `vx` ya viene de la odometría; usarla obligaría a tratar gravedad y sesgos. |
+
+**Hallazgo: la IMU de esta simulación no aporta yaw ni giro válidos (medido).**
+
+- `/imu` publica `orientation = (0, 0, 0, 1)` con `orientation_covariance[8] = 0` en todos los ensayos, también durante el giro.
+- A mitad del giro (`/odom` a 0.5 rad/s) `angular_velocity.z = 0.0000` y `angular_velocity_covariance[8] = 0`. `linear_acceleration.z = 9.800`, así que la IMU mide la gravedad pero no el giro.
+- Las covarianzas a 0 no se rechazan: robot_localization las fusiona como ruido de medida nulo. Ese es el problema práctico:
+  - Con el yaw absoluto de la IMU fusionado, el yaw del EKF queda en 0: tras el giro de 2.5 rad, `/odom_filtered` marcó yaw 0.0000 (corrida con la primera configuración, `imu0_config` con yaw y vyaw).
+  - Con solo `vyaw` de la IMU (0 con covarianza 0) junto al `vyaw` de la odometría (0.5), el EKF queda en la media: 0.25 rad/s a mitad del giro.
+- **Decisión:** se quitó el yaw de la IMU de `imu0_config`. Se mantiene `vyaw` porque es la única medida de giro disponible, aunque en esta simulación empeora el resultado (ver 2.4 y 2.5).
+- No se ha cambiado `process_noise_covariance` ni se ha añadido ruido de sensor al URDF. NO VERIFICADO: si un ruido de medida mayor en la IMU mejora algo.
 
 ### 2.2 Frame que publica el EKF
-<!-- TODO -->
+
+- El EKF publica `odom -> base_link` (`world_frame: odom`, `publish_tf: true`). Verificado con `ros2 topic echo --once /odom_filtered`: `header.frame_id: odom`, `child_frame_id: base_link`.
+- `map -> odom` **no** lo publica el EKF. Lo publica un `static_transform_publisher` identidad lanzado por `ekf.launch.py` (argumento `launch_static_map_odom`, por defecto `true`). Es **provisional**: cuando SLAM o AMCL publiquen `map -> odom`, lanzar con `launch_static_map_odom:=false` para no tener dos publicadores de `map -> odom`.
+- Con `use_ekf:=true` la odometría de rueda no publica `odom -> base_link`:
+  - gz DiffDrive: `tf_topic` apunta a `/model/dif_bot/tf_ekf_disabled` (no se bridgea), y `/tf` no se bridgea. Sin `use_ekf` no cambia nada.
+  - ros2_control: se carga `config/controllers_ekf.yaml` (copia de `controllers.yaml` con `enable_odom_tf: false`). Verificado con `ros2 param get /diff_drive_controller enable_odom_tf`: `Boolean value is: False`.
+- Sin `use_ekf` el URDF generado con `xacro` es idéntico al de HEAD (diff vacío en ambos modos). Con `use_ekf:=true` solo cambian esas dos líneas.
 
 ### 2.3 Verificación del árbol TF
-<!-- TODO -->
+
+Comandos (con el launch real, `headless:=true`, y el EKF en marcha):
+
+```bash
+ros2 run tf2_ros tf2_echo map base_link
+ros2 run tf2_tools view_frames          # escribe frames.pdf y frames.gv en el directorio actual
+ros2 topic info /tf -v
+ros2 run tf2_ros tf2_monitor odom base_link
+```
+
+Qué comprobar:
+
+- El árbol es `map -> odom -> base_link`, con `base_link` padre de ruedas y sensores.
+- `odom -> base_link` tiene **un solo publicador**: `ekf_filter_node`, a ~30 Hz.
+- `robot_state_publisher` publica las ruedas y los links fijos, pero no `odom`.
+- En modo ros2_control, `diff_drive_controller` aparece como publicador registrado en `/tf`. Eso no basta para decir que publica TF: con `enable_odom_tf: false` no envía `odom -> base_link`. Se comprueba con el parámetro (ver 2.2) y contando las aristas que llegan a `/tf`.
+
+Resultados medidos:
+
+- `view_frames` (gz, con IMU): árbol `map -> odom -> base_link`, con `base_link -> left_wheel_link` y `right_wheel_link` (20.2 Hz) y sensores. `odom -> base_link` a 30.2 Hz. El PDF está en `scratchpad/caso1e_ekf_imu/frames_2026-11-22_17.00.00.pdf` (fuera del repo).
+- `tf2_echo map base_link` (antes del movimiento): identidad (traslación 0, cuaternión `0 0 0 1`). NO VERIFICADO tras el movimiento.
+- `ros2 topic info /tf -v` (gz, con IMU): 2 publicadores, `ekf_filter_node` y `robot_state_publisher`.
+- Aristas en `/tf`:
+  - gz, con IMU: 94 mensajes con `odom -> base_link` en una ventana de 5 s. La cifra es baja porque la ventana incluye el arranque del nodo; no es la tasa del EKF.
+  - ros2_control, sonda dedicada (8 s): 241 mensajes con `odom -> base_link`, 30.1 Hz, con `diff_drive_controller` registrado en `/tf` pero con `enable_odom_tf: false`. Si el controlador también publicara esa arista, la cuenta sería mayor (~80 Hz).
+- `tf2_monitor` no concluyó: reportó `<no authority available>` para `odom` y `base_link`. No lo uso como prueba.
+- `view_frames` muestra `Broadcaster: default_authority`, sin nombre de nodo. Para saber quién publica, usar `topic info` y el conteo de aristas.
+
+> Nota de entorno: en la primera tanda, procesos huérfanos de corridas anteriores (`parameter_bridge` y `static_transform_publisher`) publicaban `/clock` a la vez. Hubo 7365 retrocesos de `/clock` en 15 s, y el EKF y `robot_state_publisher` avisaban "jump back in time" (86 veces en el EKF). Tras matarlos, `/clock` no tuvo retrocesos. Las cifras de este informe son solo de corridas limpias.
 
 ### 2.4 Comparación /odom vs /odom_filtered
-<!-- TODO -->
+
+Comandos para la usuaria:
+
+```bash
+# Velocidad lineal de la odometría y del EKF (rqt_plot)
+rqt_plot /odom/twist/twist/linear/x /odom_filtered/twist/twist/linear/x
+# PlotJuggler (requiere GUI; en WSL, WSLg): Streaming > ROS2 Topic Subscriber, topics /odom y /odom_filtered
+ros2 run plotjuggler plotjuggler
+```
+
+NO VERIFICADO: no se han abierto `rqt_plot` ni PlotJuggler (son GUI y no se ha hecho captura en esta sesión).
+
+**Prueba de movimiento.** Secuencia: lineal 0.2 m/s durante 5 s, parada 1 s, giro 0.5 rad/s durante 5 s, parada 1 s. La medida se toma al final de cada fase, con reloj de simulación. El yaw se calcula desde el cuaternión: `yaw = atan2(2(w·z + x·y), 1 − 2(y² + z²))`. Tras la fase lineal, `/odom` y `/odom_filtered` dan `x = 1.0000 m` en las tres corridas.
+
+| Corrida | Topic | `yaw` a mitad de giro | `yaw` final | `x`, `y` final |
+|---|---|---|---|---|
+| gz, con IMU (`vyaw` de IMU) | `/odom` | 1.2410 | 2.5000 | 1.0000, −0.0000 |
+| | `/odom_filtered` | 0.3055 | 0.6250 | 1.0000, −0.0000 |
+| gz, sin IMU | `/odom` | 1.2395 | 2.5000 | 1.0000, −0.0000 |
+| | `/odom_filtered` | 1.2200 | 2.5000 | 1.0002, −0.0003 |
+| ros2_control, con IMU | `/diff_drive_controller/odom` | 1.2450 | 2.5000 | 1.0000, −0.0000 |
+| | `/odom_filtered` | 0.2988 | 0.6250 | 1.0000, −0.0000 |
+
+Lectura honesta:
+
+- **Sin IMU, el EKF reproduce la odometría** (diferencias de 2e-4 m en x y 3e-4 m en y; yaw final igual). Eso es lo esperable en simulación sin ruido: `/odom` ya es casi perfecta y el EKF no tiene nada que corregir.
+- **Con la IMU de esta simulación, el EKF empeora el giro**: yaw final 0.625 rad frente a 2.5 rad de la odometría. La causa está medida en 2.1 (giro de la IMU a 0 con covarianza 0). **No se afirma que el EKF mejore nada en esta simulación.**
+- Frecuencias: `/odom_filtered` 29.98–30.00 Hz en las cuatro corridas. `/diff_drive_controller/odom` 49.9 Hz en la sonda de ros2_control. `/odom` no se ha vuelto a medir en esta sesión (NO VERIFICADO aquí; ver 1.5).
+- La pose física del robot en gz no se pudo leer (`gz topic` respondió "An instance of Gazebo is not running" en su intento), así que **no se sabe si el robot gira 2.5 rad de verdad**. NO VERIFICADO.
 
 ### 2.5 Efecto de desactivar la IMU
-<!-- TODO -->
+
+Pasos exactos:
+
+```bash
+# Terminal 1: simulación con EKF (sin ros2_control)
+ros2 launch dif_bot sim.launch.py use_ros2_control:=false use_ekf:=true
+# Terminal 2: EKF sin IMU (imu0_config queda todo False)
+ros2 launch dif_bot ekf.launch.py use_imu:=false
+# Terminal 3: comprobar y mover
+ros2 topic hz /odom_filtered
+```
+
+Con el mismo movimiento de 2.4, el yaw final de `/odom_filtered` pasa de 0.6250 rad (con IMU) a 2.5000 rad (sin IMU), igual que `/odom`. Lo que se ve aquí es el efecto de la IMU concreta de esta simulación, no una propiedad del EKF. No se ha probado con ruido ni con una IMU que sí mida giro.
+
+> **[OBSERVACIÓN PENDIENTE DE DANIELA]** En pantalla (Gazebo con GUI, sin `headless`), repetir el giro de 5 s a 0.5 rad/s con `use_imu:=true` y con `use_imu:=false` y anotar:
+> - yaw final de `/odom`: ______
+> - yaw final de `/odom_filtered` con IMU: ______
+> - yaw final de `/odom_filtered` sin IMU: ______
+> - ¿El robot gira visualmente unos 2.5 rad (unas 0.4 vueltas completas)? ______
