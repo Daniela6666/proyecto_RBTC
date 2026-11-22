@@ -28,17 +28,17 @@ Fuente: `src/dif_bot/urdf/robot.urdf.xacro`, `gz_control.xacro`, `ros2_control.x
 | imu | imu | imu_link | `/imu` (Imu) | 100 Hz | `imu_link` |
 | camera | camera | camera_link | `/camera/image_raw` (Image) | 10 Hz | `camera_link` |
 
-Los frames de sensores se fijan con `<ignition_frame_id>` en el URDF (añadido en esta corrección; el frame resultante se midió, ver tabla).
+Los frames de sensores se fijan con `<ignition_frame_id>` en el URDF (añadido en esta corrección). Los valores de la tabla de sensores (Hz y `header.frame_id`) son de terminal, salida no archivada.
 
 **Frames**
 
 | Frame | Rol | Verificado |
 |---|---|---|
-| `odom` | Padre de la odometría | Sí: `header.frame_id` de `/odom` (modo sin ros2_control) |
+| `odom` | Padre de la odometría | Sí: `header.frame_id` de `/odom` (modo sin ros2_control; `harness_false2.out`) |
 | `base_footprint` | Proyección en el suelo (link vacío) | Árbol de `robot_state_publisher` |
-| `base_link` | Frame del robot; `child_frame_id` de `/odom` | Sí (`/odom` y `/tf`) |
+| `base_link` | Frame del robot; `child_frame_id` de `/odom` | Sí (`/odom` y `/tf`; `harness_false2.out`) |
 | `left_wheel_link`, `right_wheel_link`, `caster_link` | Ruedas y rueda loca | Árbol de `robot_state_publisher` |
-| `lidar_link`, `imu_link`, `camera_link` | Sensores | Sí (`header.frame_id` de cada topic) |
+| `lidar_link`, `imu_link`, `camera_link` | Sensores | Sí (`header.frame_id` de cada topic; terminal, no archivado) |
 
 ### 1.2 Lanzamiento sin ros2_control
 
@@ -54,11 +54,13 @@ ros2 launch dif_bot sim.launch.py use_ros2_control:=false headless:=true
 
 **Problema encontrado y solución**
 
-- Con el render `ogre2` del plugin Sensors del mundo, Gazebo terminaba al spawnear el robot: `terminate called ... Ogre::UnimplementedException ... GL3PlusTextureGpu::copyTo`. Reproducido con el launch real. Sin ningún sensor el robot carga bien, y cada sensor por separado también crashea con ogre2. Es el backend GL3+ de Ogre2 en este WSL sin GPU real.
+- Con el render `ogre2` del plugin Sensors del mundo, Gazebo terminaba al spawnear el robot: `terminate called ... Ogre::UnimplementedException ... GL3PlusTextureGpu::copyTo`. Reproducido con el launch real. Quitando solo la cámara, o solo el lidar, sigue crasheando; solo sin sensores carga (`diag_no_camera.log`, `diag_no_lidar.log` y `diag2_no_sensors.log` en el scratchpad). Es el backend GL3+ de Ogre2 en este WSL sin GPU real.
 - **Solución aplicada:** `<render_engine>ogre</render_engine>` (Ogre v1) en `worlds/empty_world.sdf`. Con esto los sensores publican. Se mantiene `--headless-rendering` (EGL) en el modo `headless:=true`, necesario para arrancar el servidor sin ventana.
 - Esto es un cambio de configuración, no un parche: Ogre v1 es el motor de render que soporta la cámara y el lidar en este entorno. No se ha probado en un equipo con GPU real.
 
 **Resultado real** (launch completo, `headless:=true`, `use_ros2_control:=false`)
+
+> Todas las cifras de esta sección (hz, frames, `/tf`, prueba de movimiento) son de terminal; la salida no está archivada en el scratchpad. Los `cs_*.log` son solo el stdout del launch y no contienen estas mediciones.
 
 | Comando | Resultado |
 |---|---|
@@ -94,6 +96,8 @@ ros2 node list
 
 **Resultado real** (launch completo, `headless:=true`, `use_ros2_control:=true`)
 
+> Todas las cifras de este bloque (estados `active`, nodos, hz, frames, x = 0.94 m) son de terminal; la salida no está archivada en el scratchpad.
+
 - Ambos controladores cargan en estado **active**: `Successfully loaded controller joint_state_broadcaster into state active` y `... diff_drive_controller into state active`.
 - Nodos: `/controller_manager`, `/diff_drive_controller`, `/gz_ros2_control`, `/joint_state_broadcaster`, `/robot_state_publisher`, `/ros_gz_bridge`.
 - Topics de sensores: `/scan` 10.00 Hz, `/imu` 99.99 Hz, `/camera/image_raw` 9.97 Hz, con frames `lidar_link`, `imu_link`, `camera_link`.
@@ -126,7 +130,7 @@ ros2 topic info /diff_drive_controller/odom -v   # con ros2_control
 ros2 node list
 ```
 
-Publishers observados: sin ros2_control, `ros_gz_bridge` (1 publisher en `/odom`); con ros2_control, `/diff_drive_controller` (ver 1.3).
+Publishers observados: sin ros2_control, `ros_gz_bridge` con `Publisher count: 1` en `/odom` (archivado en `harness_false.out` y `harness_false2.out`, modo sin sensores; en el launch real no se guardó `ros2 topic info`: NO VERIFICADO allí); con ros2_control, `/diff_drive_controller` (ver 1.3).
 
 ### 1.5 Estabilidad y latencia
 
@@ -136,27 +140,27 @@ Solo lo medido (sin datos de la simulación en pantalla):
 
 | Corrida | Topic | Media | Desviación típica (rango) |
 |---|---|---|---|
-| sin ros2_control (launch real) | `/odom` | 49.99 Hz | — |
+| sin ros2_control (launch real) | `/odom` | 49.99 Hz (terminal, no archivado) | — |
 | sin ros2_control (harness sin sensores) | `/odom` | 49.95–50.00 Hz | 0.00004–0.00023 s |
 | con ros2_control (harness sin sensores) | `/diff_drive_controller/odom` | 49.90–50.00 Hz | 0.00008–0.00030 s |
-| con ros2_control (launch real) | `/diff_drive_controller/odom` | 49.99 Hz | — |
+| con ros2_control (launch real) | `/diff_drive_controller/odom` | 49.99 Hz (terminal, no archivado) | — |
 
-Fuentes de las desviaciones (salidas guardadas en el scratchpad del equipo): `harness_false.out` y `harness_false2.out` para el modo sin ros2_control; `harness_true.out` y `harness_true2.out` para el modo con ros2_control. Los launches reales no capturaron la desviación.
+Fuentes de las desviaciones (salidas guardadas en el scratchpad del equipo): `harness_false.out` y `harness_false2.out` para el modo sin ros2_control; `harness_true.out` y `harness_true2.out` para el modo con ros2_control. Los launches reales no capturaron la desviación. `harness.sh` y los `.out` de estas pruebas no están versionados en el repo; están en el scratchpad de la sesión.
 
-**Movimiento tras publicar `cmd_vel` a 0.2 m/s** (lectura de `pose.position.x`; el publish dura `timeout 5`, es decir ≈ 5 s, y la lectura se hace después):
+**Movimiento tras publicar `cmd_vel` a 0.2 m/s** (lectura de `pose.position.x`). Duración real del publish según el script que generó cada corrida: `harness_false.out` usó `timeout 4` (su etiqueta decía "3 s"); `harness_true.out` usó `timeout 5` (su etiqueta decía "4 s"); `harness_false2.out`, `harness_true2.out` y el launch real usaron `timeout 5`. Las etiquetas de los `.out` no coinciden con el timeout; los datos son los del timeout. La lectura posterior se hace inmediatamente después.
 
 | Corrida | Topic de comando | x antes | x después |
 |---|---|---|---|
 | sin ros2_control, harness (`harness_false.out`) | `/cmd_vel` | no leído | 0.831 m |
 | sin ros2_control, harness (`harness_false2.out`) | `/cmd_vel` | −1.8e-15 | 1.04 m |
-| sin ros2_control, launch real | `/cmd_vel` | −1.8e-15 | 1.034 m |
+| sin ros2_control, launch real | `/cmd_vel` | −1.8e-15 | 1.034 m (terminal, no archivado) |
 | con ros2_control, harness (`harness_true.out`) | `/diff_drive_controller/cmd_vel_unstamped` | no leído | 0.92 m |
 | con ros2_control, harness (`harness_true2.out`) | `/diff_drive_controller/cmd_vel_unstamped` | −1.8e-15 | 0.94 m |
-| con ros2_control, launch real | `/diff_drive_controller/cmd_vel_unstamped` | −1.8e-15 | 0.94 m |
+| con ros2_control, launch real | `/diff_drive_controller/cmd_vel_unstamped` | −1.8e-15 | 0.94 m (terminal, no archivado) |
 
-Lectura: con la misma velocidad comandada, el desplazamiento medido varía entre 0.83 y 1.04 m sin ros2_control, y entre 0.92 y 0.94 m con ros2_control. La causa de la variación no está determinada: puede venir del arranque y la aceleración del robot y del tiempo entre la publicación y la lectura. No se ha calculado un valor teórico para comparar.
+Lectura: con la misma velocidad comandada, el desplazamiento medido varía entre 0.83 y 1.04 m sin ros2_control, y entre 0.92 y 0.94 m con ros2_control. La diferencia de duración de publicación (4 s en `harness_false.out` frente a 5 s en las demás) explica en parte el rango sin ros2_control; el resto no tiene causa determinada. No se ha calculado un valor teórico para comparar.
 
-**Harness vs launch real.** El harness (`/tmp/.../scratchpad/harness.sh`) bridgeaba `/cmd_vel` en los dos modos. El launch real **no** bridgea `/cmd_vel` con ros2_control: allí el comando es `/diff_drive_controller/cmd_vel_unstamped`. Los valores del harness con ros2_control se han medido sobre ese topic.
+**Harness vs launch real.** El harness (`harness.sh`, no versionado: está en el scratchpad de la sesión) bridgeaba `/cmd_vel` en los dos modos. El launch real **no** bridgea `/cmd_vel` con ros2_control: allí el comando es `/diff_drive_controller/cmd_vel_unstamped`. Los valores del harness con ros2_control se han medido sobre ese topic.
 
 **Retardo** (`ros2 topic delay`): sin medir (ver 1.2).
 
