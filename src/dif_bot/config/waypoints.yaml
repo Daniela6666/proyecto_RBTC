@@ -1,0 +1,13 @@
+# Waypoints de la misión (Persona C). Frame: map (con SLAM, map = pose inicial del robot).
+# Mundo empty_world: cajas de 1x1 m en (2, 0), (0, 2.5) y (-2, -1.5).
+# Los puntos están dentro de la zona que cubre el mapa de SLAM (aprox.
+# x -2.5..1.5, y -2..2: solo hay mapa donde el láser golpea las cajas) y a
+# >= 0.9 m de las esquinas de las cajas (radio 0.26 m + inflación 0.55 m).
+# Probado: misión completa 5/5 (ver docs/informe_C.md).
+frame_id: map
+waypoints:
+  - {name: p1_noreste,  x: 1.0,  y: 1.2,  yaw_deg: 0.0}
+  - {name: p2_sureste,  x: 0.8,  y: -1.2, yaw_deg: -90.0}
+  - {name: p3_suroeste, x: -1.0, y: -0.2, yaw_deg: 180.0}
+  - {name: p4_noroeste, x: -1.2, y: 1.2,  yaw_deg: 90.0}
+  - {name: p5_inicio,   x: 0.0,  y: 0.0,  yaw_deg: 0.0}
