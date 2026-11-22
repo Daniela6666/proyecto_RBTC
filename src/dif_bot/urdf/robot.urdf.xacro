@@ -1,175 +1,146 @@
 <?xml version="1.0"?>
+<!-- Robot unico de dif_bot: geometria y sensores del robot de persona-b (urdf/robot.urdf original).
+     Argumentos:
+       use_ros2_control:=false (defecto) -> DiffDrive nativo de Gazebo + JointStatePublisher (gz_control.xacro)
+       use_ros2_control:=true            -> hardware ign_ros2_control (ros2_control.xacro)
+       use_ekf:=false (defecto)          -> la odometria de rueda publica odom->base_link
+       use_ekf:=true                     -> lo publica el EKF; la odometria no publica ese TF -->
 <robot name="dif_bot" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <xacro:arg name="use_ros2_control" default="false"/>
-  <!-- true: el TF odom->base_link lo publica el EKF (robot_localization); la odometria de rueda no lo publica -->
   <xacro:arg name="use_ekf" default="false"/>
 
-  <!-- ===================== Estructura ===================== -->
-
-  <link name="base_footprint"/>
-
-  <joint name="base_footprint_joint" type="fixed">
-    <parent link="base_footprint"/>
-    <child link="base_link"/>
-    <origin xyz="0 0 0.05" rpy="0 0 0"/>
-  </joint>
-
+  <!-- ===================== Cuerpo ===================== -->
   <link name="base_link">
-    <visual>
-      <origin xyz="0 0 0.02" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.4 0.25 0.1"/>
-      </geometry>
-      <material name="blue">
-        <color rgba="0.1 0.3 0.8 1"/>
-      </material>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0.02" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.4 0.25 0.1"/>
-      </geometry>
-    </collision>
     <inertial>
       <mass value="5"/>
-      <inertia ixx="0.030208" ixy="0" ixz="0" iyy="0.070833" iyz="0" izz="0.092708"/>
+      <inertia ixx="0.06" ixy="0" ixz="0" iyy="0.08" iyz="0" izz="0.12"/>
     </inertial>
+    <visual>
+      <geometry>
+        <box size="0.4 0.3 0.15"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.4 0.3 0.15"/>
+      </geometry>
+    </collision>
   </link>
 
-  <!-- Ruedas: cilindro r=0.05, ancho 0.03, masa 0.5. Eje Y. Centro a altura 0 respecto a base_link -->
+  <!-- ===================== Ruedas motrices ===================== -->
+  <!-- Cilindro r=0.1, longitud 0.05, masa 0.3. Eje Y. y=+-0.19 (separacion 0.38), z=-0.05 -->
   <xacro:macro name="wheel" params="side ypos">
-    <link name="${side}_wheel_link">
+    <link name="${side}_wheel">
+      <inertial>
+        <mass value="0.3"/>
+        <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.0015" iyz="0" izz="0.001"/>
+      </inertial>
       <visual>
-        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <origin rpy="1.5707963 0 0"/>
         <geometry>
-          <cylinder radius="0.05" length="0.03"/>
+          <cylinder radius="0.1" length="0.05"/>
         </geometry>
-        <material name="black">
-          <color rgba="0.05 0.05 0.05 1"/>
-        </material>
       </visual>
       <collision>
-        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <origin rpy="1.5707963 0 0"/>
         <geometry>
-          <cylinder radius="0.05" length="0.03"/>
+          <cylinder radius="0.1" length="0.05"/>
         </geometry>
       </collision>
-      <inertial>
-        <mass value="0.5"/>
-        <inertia ixx="0.00035" ixy="0" ixz="0" iyy="0.00035" iyz="0" izz="0.000625"/>
-      </inertial>
     </link>
 
     <joint name="${side}_wheel_joint" type="continuous">
       <parent link="base_link"/>
-      <child link="${side}_wheel_link"/>
-      <origin xyz="0 ${ypos} 0" rpy="0 0 0"/>
+      <child link="${side}_wheel"/>
+      <origin xyz="0 ${ypos} -0.05"/>
       <axis xyz="0 1 0"/>
     </joint>
   </xacro:macro>
 
-  <xacro:wheel side="left" ypos="0.15"/>
-  <xacro:wheel side="right" ypos="-0.15"/>
+  <xacro:wheel side="left" ypos="0.19"/>
+  <xacro:wheel side="right" ypos="-0.19"/>
 
-  <!-- Rueda loca: esfera r=0.025, friccion 0 -->
-  <link name="caster_link">
+  <!-- ===================== Ruedas locas (sin friccion) ===================== -->
+  <link name="front_caster">
+    <inertial>
+      <mass value="0.05"/>
+      <inertia ixx="0.00002" ixy="0" ixz="0" iyy="0.00002" iyz="0" izz="0.00002"/>
+    </inertial>
     <visual>
       <geometry>
-        <sphere radius="0.025"/>
+        <sphere radius="0.035"/>
       </geometry>
-      <material name="gray">
-        <color rgba="0.6 0.6 0.6 1"/>
-      </material>
     </visual>
     <collision>
       <geometry>
-        <sphere radius="0.025"/>
+        <sphere radius="0.035"/>
       </geometry>
     </collision>
-    <inertial>
-      <mass value="0.1"/>
-      <inertia ixx="0.000025" ixy="0" ixz="0" iyy="0.000025" iyz="0" izz="0.000025"/>
-    </inertial>
   </link>
 
-  <joint name="caster_joint" type="fixed">
+  <joint name="front_joint" type="fixed">
     <parent link="base_link"/>
-    <child link="caster_link"/>
-    <origin xyz="-0.15 0 -0.025" rpy="0 0 0"/>
+    <child link="front_caster"/>
+    <origin xyz="0.16 0 -0.115"/>
   </joint>
 
-  <gazebo reference="caster_link">
-    <mu1>0.0</mu1>
-    <mu2>0.0</mu2>
+  <gazebo reference="front_caster">
+    <mu1>0.001</mu1>
+    <mu2>0.001</mu2>
   </gazebo>
 
-  <!-- Sensores -->
-  <link name="lidar_link">
+  <link name="rear_caster">
+    <inertial>
+      <mass value="0.05"/>
+      <inertia ixx="0.00002" ixy="0" ixz="0" iyy="0.00002" iyz="0" izz="0.00002"/>
+    </inertial>
     <visual>
       <geometry>
-        <cylinder radius="0.035" length="0.04"/>
+        <sphere radius="0.035"/>
       </geometry>
-      <material name="red">
-        <color rgba="0.8 0.1 0.1 1"/>
-      </material>
     </visual>
-    <inertial>
-      <mass value="0.1"/>
-      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
-    </inertial>
+    <collision>
+      <geometry>
+        <sphere radius="0.035"/>
+      </geometry>
+    </collision>
   </link>
 
-  <joint name="lidar_joint" type="fixed">
+  <joint name="rear_joint" type="fixed">
     <parent link="base_link"/>
-    <child link="lidar_link"/>
-    <origin xyz="0.1 0 0.07" rpy="0 0 0"/>
+    <child link="rear_caster"/>
+    <origin xyz="-0.16 0 -0.115"/>
   </joint>
 
-  <link name="imu_link">
-    <inertial>
-      <mass value="0.01"/>
-      <inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
-    </inertial>
-  </link>
+  <gazebo reference="rear_caster">
+    <mu1>0.001</mu1>
+    <mu2>0.001</mu2>
+  </gazebo>
 
+  <!-- ===================== Frames de sensores ===================== -->
+  <link name="laser_frame"/>
+  <joint name="laser_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="laser_frame"/>
+    <origin xyz="0.1 0 0.13"/>
+  </joint>
+
+  <link name="imu_link"/>
   <joint name="imu_joint" type="fixed">
     <parent link="base_link"/>
     <child link="imu_link"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <link name="camera_link">
-    <visual>
-      <geometry>
-        <box size="0.02 0.05 0.02"/>
-      </geometry>
-      <material name="dark">
-        <color rgba="0.2 0.2 0.2 1"/>
-      </material>
-    </visual>
-    <inertial>
-      <mass value="0.05"/>
-      <inertia ixx="0.000005" ixy="0" ixz="0" iyy="0.000005" iyz="0" izz="0.000005"/>
-    </inertial>
-  </link>
-
-  <joint name="camera_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="camera_link"/>
-    <origin xyz="0.19 0 0.03" rpy="0 0 0"/>
-  </joint>
-
-  <!-- Sensores Gazebo (siempre activos, independientes de ros2_control) -->
-  <gazebo reference="lidar_link">
-    <sensor name="gpu_lidar" type="gpu_lidar">
-      <pose relative_to="lidar_link">0 0 0 0 0 0</pose>
-      <topic>scan</topic>
-      <ignition_frame_id>lidar_link</ignition_frame_id>
+  <!-- ===================== Sensores Gazebo (siempre activos) ===================== -->
+  <gazebo reference="base_link">
+    <sensor name="lidar" type="gpu_lidar">
+      <pose>0.1 0 0.13 0 0 0</pose>
+      <topic>/scan</topic>
       <update_rate>10</update_rate>
       <always_on>true</always_on>
-      <visualize>true</visualize>
-      <ray>
+      <ignition_frame_id>laser_frame</ignition_frame_id>
+      <lidar>
         <scan>
           <horizontal>
             <samples>360</samples>
@@ -180,48 +151,25 @@
         </scan>
         <range>
           <min>0.12</min>
-          <max>8.0</max>
+          <max>12</max>
           <resolution>0.01</resolution>
         </range>
-      </ray>
+        <noise>
+          <type>gaussian</type>
+          <mean>0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </lidar>
     </sensor>
-  </gazebo>
-
-  <gazebo reference="imu_link">
-    <sensor name="imu_sensor" type="imu">
-      <pose relative_to="imu_link">0 0 0 0 0 0</pose>
-      <topic>imu</topic>
+    <sensor name="imu" type="imu">
+      <topic>/imu</topic>
+      <update_rate>50</update_rate>
+      <always_on>true</always_on>
       <ignition_frame_id>imu_link</ignition_frame_id>
-      <update_rate>100</update_rate>
-      <always_on>true</always_on>
-      <visualize>false</visualize>
     </sensor>
   </gazebo>
 
-  <gazebo reference="camera_link">
-    <sensor name="camera" type="camera">
-      <pose relative_to="camera_link">0 0 0 0 0 0</pose>
-      <topic>camera/image_raw</topic>
-      <ignition_frame_id>camera_link</ignition_frame_id>
-      <update_rate>10</update_rate>
-      <always_on>true</always_on>
-      <visualize>true</visualize>
-      <camera>
-        <horizontal_fov>1.047</horizontal_fov>
-        <image>
-          <width>320</width>
-          <height>240</height>
-          <format>R8G8B8</format>
-        </image>
-        <clip>
-          <near>0.05</near>
-          <far>10</far>
-        </clip>
-      </camera>
-    </sensor>
-  </gazebo>
-
-  <!-- Bloques condicionales -->
+  <!-- ===================== Bloques condicionales ===================== -->
   <xacro:include filename="$(find dif_bot)/urdf/gz_control.xacro"/>
   <xacro:include filename="$(find dif_bot)/urdf/ros2_control.xacro"/>
 

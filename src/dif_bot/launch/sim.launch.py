@@ -8,7 +8,6 @@ from launch.actions import (
     OpaqueFunction,
     SetEnvironmentVariable,
 )
-from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -25,7 +24,7 @@ def launch_setup(context, *args, **kwargs):
     pkg_share = get_package_share_directory('dif_bot')
     world_path = os.path.join(pkg_share, 'worlds', world)
 
-    # headless: solo servidor, render por EGL (sin ventana); sin esto Ogre2 falla en WSL sin GPU
+    # headless: solo servidor, render por EGL (sin ventana); sin esto el render falla en WSL sin GPU
     gz_args = f'-r {"-s --headless-rendering " if headless else ""}{world_path}'
 
     gz_sim = IncludeLaunchDescription(
@@ -35,14 +34,15 @@ def launch_setup(context, *args, **kwargs):
         launch_arguments={'gz_args': gz_args, 'on_exit_shutdown': 'true'}.items(),
     )
 
+    # Z de spawn: base_link a 0.16 m apoya las ruedas (radio 0.1, centro en z=-0.05) sobre el suelo
     spawn = Node(
         package='ros_gz_sim',
         executable='create',
-        arguments=['-topic', 'robot_description', '-name', 'dif_bot', '-z', '0.1'],
+        arguments=['-topic', 'robot_description', '-name', 'dif_bot', '-z', '0.16'],
         output='screen',
     )
 
-    # Mismo xacro para ambos modos; cambian los argumentos use_ros2_control y use_ekf
+    # Un unico xacro (urdf/robot.urdf.xacro); cambian use_ros2_control y use_ekf
     robot_description = ParameterValue(
         Command([
             FindExecutable(name='xacro'), ' ',
@@ -60,12 +60,11 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': True, 'robot_description': robot_description}],
     )
 
-    # Puente comun a ambos modos
+    # Puente comun a ambos modos: reloj, lidar e IMU
     bridge_args = [
         '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
         '/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
         '/imu@sensor_msgs/msg/Imu[gz.msgs.IMU',
-        '/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
     ]
     # Solo sin ros2_control: DiffDrive nativo de Gazebo
     if not use_ros2_control:
@@ -86,11 +85,8 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
     )
 
-    actions = [gz_sim, spawn, rsp, bridge]
-
-    # Con ros2_control: no se lanzan spawners. Los controladores se cargan a mano.
-    # (ver README.md raiz)
-    return actions
+    # Con ros2_control no se lanzan spawners: los controladores se cargan a mano (ver README.md raiz).
+    return [gz_sim, spawn, rsp, bridge]
 
 
 def generate_launch_description():
@@ -110,7 +106,7 @@ def generate_launch_description():
             description='true: el EKF (ekf.launch.py) publica odom->base_link; la odometria de rueda no publica ese TF',
         ),
         DeclareLaunchArgument(
-            'world', default_value='empty_world.sdf',
+            'world', default_value='rbtc_room.sdf',
             description='Archivo del mundo dentro de worlds/',
         ),
         DeclareLaunchArgument(
