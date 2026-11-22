@@ -1,4 +1,4 @@
-"""Navegación completa (Persona C): simulación + controladores + SLAM/AMCL + Nav2 + misión.
+"""Navegación completa (Persona C: Santiago Chacón): simulación + controladores + SLAM/AMCL + Nav2 + misión.
 
 Uso:
   ros2 launch dif_bot nav.launch.py slam:=true            # mapea mientras navega

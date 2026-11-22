@@ -7,7 +7,7 @@ install(DIRECTORY urdf worlds launch config maps rviz
   DESTINATION share/${PROJECT_NAME}
 )
 
-# Persona C: nodos Python de navegación y misión
+# Persona C (Santiago Chacón): nodos Python de navegación y misión
 install(PROGRAMS
   scripts/mission_node.py
   scripts/cmd_vel_relay.py

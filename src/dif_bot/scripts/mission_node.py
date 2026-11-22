@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Nodo de misión (Persona C, proyecto final).
+"""Nodo de misión (Persona C: Santiago Chacón, proyecto final).
 
 Lee una lista de waypoints desde un YAML y, al llamar al servicio
 /start_mission (std_srvs/Trigger), los recorre en orden con

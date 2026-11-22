@@ -7,6 +7,10 @@
   <maintainer email="daniela@example.com">Daniela Molina</maintainer>
   <license>Apache-2.0</license>
 
+  <author>Daniela Molina</author>
+  <author>Tomás Alvares</author>
+  <author>Santiago Chacón</author>
+
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>xacro</exec_depend>

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Reenvía /cmd_vel (salida de Nav2) al topic que escucha diff_drive_controller.
+"""Persona C (Santiago Chacón).
+
+Reenvía /cmd_vel (salida de Nav2) al topic que escucha diff_drive_controller.
 
 Con use_ros2_control:=true el controlador lee
 /diff_drive_controller/cmd_vel_unstamped y no /cmd_vel (ver README raíz).
