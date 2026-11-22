@@ -4,7 +4,7 @@
 
 > El robot `dif_bot` y el mundo fueron **generados por el equipo** (no son material de la cátedra). Se usan como base para las prácticas.
 >
-> **Estado del robot:** desde el merge con persona B, el robot es el de persona B (`urdf/robot.urdf.xacro`, con argumentos `use_ros2_control` y `use_ekf`) y el mundo por defecto es `rbtc_room`. **Las cifras de este informe son del robot anterior** (con `base_footprint`, `lidar_link`, `camera_link` y mundo `empty_world`) y deben re-medirse con el robot actual. Las tablas de joints, sensores y frames de 1.1, y los parámetros de DiffDrive y de los controladores, se han actualizado al URDF actual.
+> **Estado del robot:** desde el merge con persona B, el robot es el de persona B (`urdf/robot.urdf.xacro`, con argumentos `use_ros2_control` y `use_ekf`) y el mundo por defecto es `rbtc_room`. **Las cifras de las secciones 1.x y 2.x se re-midieron el 2026-11-22 con el robot actual** (headless, una corrida por caso). Lo que aún menciona el robot anterior (con `base_footprint`, `lidar_link`, `camera_link` y mundo `empty_world`) está marcado como historial. Lo no medido figura como NO VERIFICADO.
 
 ## Práctica 1: Control y odometría
 
@@ -32,16 +32,16 @@ Joints del URDF actual (robot de persona B). Eliminados con el cambio: `base_foo
 | lidar | gpu_lidar | base_link (pose 0.1 0 0.13) | laser_frame | `/scan` (LaserScan) | 10 Hz |
 | imu | imu | base_link | imu_link | `/imu` (Imu) | 50 Hz |
 
-Los frames de sensores se fijan con `<ignition_frame_id>`. Medidos con el robot anterior (re-medir): `/scan` 10.02 Hz con frame `lidar_link`; `/imu` 100.01 Hz con frame `imu_link`; `/camera/image_raw` 10 Hz con frame `camera_link` (el sensor de cámara ya no existe). Los valores son de terminal, salida no archivada.
+Los frames de sensores se fijan con `<ignition_frame_id>`. Medidos con el robot actual (re-medición del 2026-11-22, sin ros2_control; `scratchpad/p1m81/hz_h_*.txt`): `/scan` 10.00 Hz con frame `laser_frame`; `/imu` 49.87 Hz con frame `imu_link`. El robot actual no tiene cámara; las cifras de `/camera/image_raw` de la versión anterior se han quitado.
 
 **Frames**
 
 | Frame | Rol | Verificado |
 |---|---|---|
-| `odom` | Padre de la odometría | Sí con el robot anterior (medido con el robot anterior; re-medir): `header.frame_id` de `/odom` (modo sin ros2_control; `harness_false2.out`) |
-| `base_link` | Frame del robot; `child_frame_id` de `/odom` | Sí con el robot anterior (medido con el robot anterior; re-medir) (`/odom` y `/tf`; `harness_false2.out`) |
-| `left_wheel`, `right_wheel`, `front_caster`, `rear_caster` | Ruedas y ruedas locas | Árbol de `robot_state_publisher` con el URDF actual (no ejecutado) |
-| `laser_frame`, `imu_link` | Sensores | Con el robot anterior (medido con el robot anterior; re-medir) (`lidar_link` e `imu_link`); con el robot actual NO VERIFICADO |
+| `odom` | Padre de la odometría | Sí, robot actual (re-medición 2026-11-22): `header.frame_id` de `/odom` (sin ros2_control) y de `/diff_drive_controller/odom` (con ros2_control) |
+| `base_link` | Frame del robot; `child_frame_id` de `/odom` | Sí, robot actual (re-medición 2026-11-22): `child_frame_id` de `/odom` y de `/diff_drive_controller/odom`; `/tf` odom -> base_link en ambos modos |
+| `left_wheel`, `right_wheel`, `front_caster`, `rear_caster` | Ruedas y ruedas locas | Sí, robot actual: `robot_state_publisher` registra los cuatro segmentos en el log de la simulación (sin ros2_control); `/tf_static` contiene `front_caster` y `rear_caster` (ambos modos) |
+| `laser_frame`, `imu_link` | Sensores | Sí, robot actual: `/scan` con frame `laser_frame` e `/imu` con `imu_link` (ambos modos) |
 
 ### 1.2 Lanzamiento sin ros2_control
 
@@ -61,25 +61,27 @@ ros2 launch dif_bot sim.launch.py use_ros2_control:=false headless:=true
 - **Solución aplicada:** `<render_engine>ogre</render_engine>` (Ogre v1) en `worlds/empty_world.sdf` y, desde el merge, en `worlds/rbtc_room.sdf` (mundo por defecto). Con esto los sensores publican. Se mantiene `--headless-rendering` (EGL) en el modo `headless:=true`, necesario para arrancar el servidor sin ventana.
 - Esto es un cambio de configuración, no un parche: Ogre v1 es el motor de render que soporta la cámara y el lidar en este entorno. No se ha probado en un equipo con GPU real.
 
-**Resultado real** (launch completo, `headless:=true`, `use_ros2_control:=false`) (medido con el robot anterior; re-medir)
+**Resultado real** (launch completo, `headless:=true`, `use_ros2_control:=false`, robot actual; re-medición del 2026-11-22, dominio ROS 81)
 
-> Todas las cifras de esta sección (hz, frames, `/tf`, prueba de movimiento) son de terminal; la salida no está archivada en el scratchpad. Los `cs_*.log` son solo el stdout del launch y no contienen estas mediciones. (medido con el robot anterior; re-medir)
+> Hz con `ros2 topic hz` (7 s, reloj de pared); el resto con `ros2 topic info`, `ros2 node list`, `ros2 topic echo --once`, `tf2_echo` y `p1_motion.py` (pose real de Gazebo con `ign topic`). Salidas en `scratchpad/p1m81/`: `h_topics.txt`, `hz_h_*.txt`, `h_info_odom.txt`, `h_nodes.txt`, `h_tf_odom_base.txt`, `h_motion.txt`, `h_gyro.txt`. Esa carpeta no está versionada.
 
 | Comando | Resultado |
 |---|---|
-| `ros2 topic hz /scan` | 10.02 Hz |
-| `ros2 topic hz /imu` | 100.01 Hz |
-| `ros2 topic hz /camera/image_raw` | 10.00 Hz |
-| `ros2 topic hz /odom` | 49.99 Hz |
-| `ros2 topic echo /scan --once --field header.frame_id` | `lidar_link` |
-| `ros2 topic echo /imu --once --field header.frame_id` | `imu_link` |
-| `ros2 topic echo /camera/image_raw --once --field header.frame_id` | `camera_link` |
+| `ros2 topic list` | `/clock`, `/cmd_vel`, `/imu`, `/joint_states`, `/odom`, `/parameter_events`, `/robot_description`, `/rosout`, `/scan`, `/tf`, `/tf_static` |
+| `ros2 topic hz /scan` | 9.997 Hz (desv. 0.00072 s) |
+| `ros2 topic hz /imu` | 49.871 Hz (desv. 0.00051 s) |
+| `ros2 topic hz /odom` | 29.412 Hz (desv. 0.00011 s) |
+| `ros2 topic echo /scan --once` (`header.frame_id`) | `laser_frame` |
+| `ros2 topic echo /imu --once` (`header.frame_id`) | `imu_link` |
 | `ros2 topic echo /odom --once` (`header.frame_id`, `child_frame_id`) | `odom`, `base_link` |
-| `/tf` | `odom` → `base_link` |
-| prueba de movimiento: `/cmd_vel` a 0.2 m/s durante 5 s | `pose.position.x` pasa de ≈ 0 a 1.03 m |
+| `ros2 topic info /odom -v` | 1 publisher, nodo `ros_gz_bridge`; 0 suscriptores |
+| `ros2 node list` | `/robot_state_publisher`, `/ros_gz_bridge` |
+| `/tf` (aristas en un mensaje) | solo `odom` → `base_link`, publicado por el plugin DiffDrive |
+| `ros2 run tf2_ros tf2_echo odom base_link` | identidad al inicio (t ≈ 51 s de simulación) |
+| prueba de movimiento: `/cmd_vel` a 0.2 m/s durante 5 s | `x` real de Gazebo 0.9856 m; `/odom` 0.9856 m (ver 1.5) |
 
 Notas:
-- `ros2 topic delay /odom` no dio una lectura interpretable en nuestra ejecución (el retardo medio salió como un valor absoluto de tiempo). **Queda sin medir.**
+- `ros2 topic delay /odom` no dio una lectura interpretable en nuestra ejecución (el retardo medio salió como un valor absoluto de tiempo). **Queda sin medir.** Ver 1.5 para la alternativa medida.
 - Los números de `pose.position.x` son una sola corrida; ver 1.5.
 - La fila de `/camera/image_raw` ya no aplica: el sensor de cámara se eliminó con el robot de persona B.
 
@@ -98,18 +100,17 @@ ros2 topic info /diff_drive_controller/odom -v
 ros2 node list
 ```
 
-**Resultado real** (launch completo, `headless:=true`, `use_ros2_control:=true`) (medido con el robot anterior; re-medir)
+**Resultado real** (launch completo, `headless:=true`, `use_ros2_control:=true`, robot actual; re-medición del 2026-11-22)
 
-> Todas las cifras de este bloque (estados `active`, nodos, hz, frames, x = 0.94 m) son de terminal; la salida no está archivada en el scratchpad. (medido con el robot anterior; re-medir)
+> Salidas en `scratchpad/p1m81/`: `rc_load_jsb.txt`, `rc_load_ddc.txt`, `rc_list.txt`, `rc_topics.txt`, `rc_nodes.txt`, `rc_hz_*.txt`, `rc_info_odom.txt`, `rc_odom_stamp.txt`, `rc_motion.txt`, `rc_gyro.txt`. Esa carpeta no está versionada.
 
-- Ambos controladores cargan en estado **active**: `Successfully loaded controller joint_state_broadcaster into state active` y `... diff_drive_controller into state active`.
-- Nodos: `/controller_manager`, `/diff_drive_controller`, `/gz_ros2_control`, `/joint_state_broadcaster`, `/robot_state_publisher`, `/ros_gz_bridge`.
-- Topics de sensores: `/scan` 10.00 Hz, `/imu` 99.99 Hz, `/camera/image_raw` 9.97 Hz, con frames `lidar_link`, `imu_link`, `camera_link` (medido con el robot anterior; re-medir).
-- **La odometría NO está en `/odom`.** Está en `/diff_drive_controller/odom` (49.99 Hz) (medido con el robot anterior; re-medir). El comando NO va a `/cmd_vel`: el controlador escucha en `/diff_drive_controller/cmd_vel_unstamped`.
-- `/tf`: `odom` → `base_link`, publicado por el controlador (`enable_odom_tf: true`).
-- Movimiento: publicando 0.2 m/s en `/diff_drive_controller/cmd_vel_unstamped`, `pose.position.x` pasa de ≈ 0 a 0.94 m (medido con el robot anterior; re-medir).
-- **No verificado:** el `header.frame_id` de `/diff_drive_controller/odom` en una lectura individual (en las dos corridas el primer mensaje se perdió por un aviso de `ros2 topic echo`). El `odom`→`base_link` sí está verificado en `/tf`.
-- El bridge de ros_gz en este modo **no** trae `/cmd_vel` ni `/odom` (solo `/clock`, `/scan`, `/imu`, `/camera/image_raw`).
+- Ambos controladores cargan en estado **active** (verificado): `Successfully loaded controller joint_state_broadcaster into state active` y `Successfully loaded controller diff_drive_controller into state active`.
+- Nodos (`ros2 node list`, verificado): `/controller_manager`, `/diff_drive_controller`, `/gz_ros2_control`, `/joint_state_broadcaster`, `/robot_state_publisher`, `/ros_gz_bridge`.
+- Topics de sensores: `/scan` 9.99 Hz (frame `laser_frame`), `/imu` 47.98 Hz (frame `imu_link`), `/joint_states` 100.00 Hz. Hay un hueco máximo de 0.346 s en `/imu` durante la medida (desv. 0.019 s); no investigado.
+- **La odometría NO está en `/odom`.** Está en `/diff_drive_controller/odom`: 49.99 Hz (desv. 0.00014 s), `Publisher count: 1` con nodo `diff_drive_controller`, `Subscription count: 0` (`ros2 topic info -v`). `header.frame_id` = `odom` y `child_frame_id` = `base_link` (lectura individual de `ros2 topic echo --once`, verificado). El comando NO va a `/cmd_vel`: el controlador escucha en `/diff_drive_controller/cmd_vel_unstamped`.
+- `/tf`: un único `odom` → `base_link`, publicado por el controlador (`enable_odom_tf: true`). `/tf_static` contiene los segmentos de `robot_state_publisher`.
+- Movimiento: 0.2 m/s durante 5 s en `/diff_drive_controller/cmd_vel_unstamped`: `x` real de Gazebo 0.9800 m y `/diff_drive_controller/odom` 0.9800 m (ver 1.5).
+- El bridge de ros_gz en este modo **no** trae `/cmd_vel` ni `/odom` (solo `/clock`, `/scan` e `/imu`).
 
 **Nota sobre el paquete `ign_ros2_control`:** la versión instalada (0.7.21) avisa de que el plugin está renombrado a `gz_ros2_control` (`gz_ros2_control/GazeboSimSystem` y `gz_ros2_control-system`). Se mantienen los nombres de la especificación; funcionan con aviso. Pendiente de decidir si migrar.
 
@@ -119,14 +120,16 @@ ros2 node list
 
 Borrador basado en el código y en lo medido:
 
-- **Sin ros2_control** (`use_ros2_control:=false`): la odometría la genera el plugin nativo de Gazebo `gz::sim::systems::DiffDrive` (definido en `urdf/gz_control.xacro`). Publica en el topic gz `odom` con frame `odom` y `child_frame_id` `base_link`, y el bridge lo expone como `/odom` (publisher: `ros_gz_bridge`). Lee `cmd_vel` de Gazebo.
+- **Sin ros2_control** (`use_ros2_control:=false`): la odometría la genera el plugin nativo de Gazebo (Fortress) `ignition::gazebo::systems::DiffDrive` (definido en `urdf/gz_control.xacro`). Publica en el topic gz `odom` con frame `odom` y `child_frame_id` `base_link`, y el bridge lo expone como `/odom` (publisher: `ros_gz_bridge`). Lee `cmd_vel` de Gazebo.
 - **Con ros2_control** (`use_ros2_control:=true`): la odometría la genera el controlador `diff_drive_controller` (DiffDriveController de ros2_control), cargado en el `controller_manager` que corre dentro de Gazebo mediante el plugin `ign_ros2_control`. Publica en `/diff_drive_controller/odom` según `config/controllers.yaml`.
 
-Ambos calculan la odometría a partir de `wheel_separation` = 0.38 m y `wheel_radius` = 0.1 m (valores actuales en `gz_control.xacro` y `controllers*.yaml`, iguales al robot de persona B; antes 0.3 m y 0.05 m). El plugin DiffDrive publica `/odom` a `odom_publish_frequency` = 30 Hz (antes 50 Hz).
+Ambos calculan la odometría a partir de `wheel_separation` = 0.38 m y `wheel_radius` = 0.1 m (valores actuales en `gz_control.xacro` y `controllers*.yaml`, iguales al robot de persona B; antes 0.3 m y 0.05 m). El plugin DiffDrive publica `/odom` a `odom_publish_frequency` = 30 Hz (medido: 29.41 Hz). El controlador publica a `publish_rate` = 50 Hz (medido: 49.99 Hz).
+
+Medido en la re-medición del 2026-11-22: en línea recta ambos dan la misma `x` que la pose real de Gazebo en cada corrida (0.9856 m sin ros2_control; 0.9800 m con ros2_control). En giro ambos subestiman el yaw real en torno al 5 % (ver 1.5). Con los datos de esta prueba, la diferencia visible entre ambos es la frecuencia y los nombres de topic.
 
 > **[OBSERVACIÓN PENDIENTE DE DANIELA]** Comparar en pantalla la odometría de ambos modos tras la misma trayectoria y anotar la diferencia.
 
-Comandos de medición (completar):
+Comandos de medición (ejecutados en la re-medición; resultados abajo):
 
 ```bash
 ros2 topic info /odom -v                         # sin ros2_control
@@ -134,41 +137,49 @@ ros2 topic info /diff_drive_controller/odom -v   # con ros2_control
 ros2 node list
 ```
 
-Publishers observados (medido con el robot anterior; re-medir): sin ros2_control, `ros_gz_bridge` con `Publisher count: 1` en `/odom` (archivado en `harness_false.out` y `harness_false2.out`, modo sin sensores; en el launch real no se guardó `ros2 topic info`: NO VERIFICADO allí); con ros2_control, `/diff_drive_controller` (ver 1.3).
+Publishers observados (medido con el robot actual, 2026-11-22): sin ros2_control, `ros2 topic info /odom -v` da `Publisher count: 1` con nodo `ros_gz_bridge` y `Subscription count: 0`; con ros2_control, `ros2 topic info /diff_drive_controller/odom -v` da `Publisher count: 1` con nodo `diff_drive_controller` y `Subscription count: 0` (ver 1.3). Salidas: `scratchpad/p1m81/h_info_odom.txt` y `rc_info_odom.txt`.
 
 ### 1.5 Estabilidad y latencia
 
-Solo lo medido (sin datos de la simulación en pantalla) (medido con el robot anterior; re-medir):
+Solo lo medido en la re-medición del 2026-11-22, robot actual, sin datos de la simulación en pantalla. Una sola sesión por modo (no hay repeticiones).
 
-**Frecuencia (`ros2 topic hz`)** (medido con el robot anterior; re-medir)
+**Frecuencia (`ros2 topic hz`, 7 s, reloj de pared)** (re-medición 2026-11-22)
 
-| Corrida | Topic | Media | Desviación típica (rango) |
+| Modo | Topic | Media | Desviación típica |
 |---|---|---|---|
-| sin ros2_control (launch real) | `/odom` | 49.99 Hz (terminal, no archivado) | — |
-| sin ros2_control (harness sin sensores) | `/odom` | 49.95–50.00 Hz | 0.00004–0.00023 s |
-| con ros2_control (harness sin sensores) | `/diff_drive_controller/odom` | 49.90–50.00 Hz | 0.00008–0.00030 s |
-| con ros2_control (launch real) | `/diff_drive_controller/odom` | 49.99 Hz (terminal, no archivado) | — |
+| sin ros2_control (headless) | `/odom` | 29.41 Hz | 0.00011 s |
+| sin ros2_control (headless) | `/scan` | 10.00 Hz | 0.00072 s |
+| sin ros2_control (headless) | `/imu` | 49.87 Hz | 0.00051 s |
+| con ros2_control (headless) | `/diff_drive_controller/odom` | 49.99 Hz | 0.00014 s |
+| con ros2_control (headless) | `/scan` | 9.99 Hz | 0.00080 s |
+| con ros2_control (headless) | `/imu` | 47.98 Hz | 0.01922 s (hueco máximo 0.346 s) |
+| con ros2_control (headless) | `/joint_states` | 100.00 Hz | 0.00012 s |
 
-Fuentes de las desviaciones (salidas guardadas en el scratchpad del equipo): `harness_false.out` y `harness_false2.out` para el modo sin ros2_control; `harness_true.out` y `harness_true2.out` para el modo con ros2_control. Los launches reales no capturaron la desviación. `harness.sh` y los `.out` de estas pruebas no están versionados en el repo; están en el scratchpad de la sesión.
+Salidas: `scratchpad/p1m81/hz_h_*.txt` (sin ros2_control) y `scratchpad/p1m81/rc_hz_*.txt` (con ros2_control). Las cifras de las corridas anteriores (`harness_*.out`, robot anterior) se han quitado de esta tabla.
 
-> **[re-medir]** Todas las cifras de 1.2 a 1.5 son del robot anterior. El robot actual (persona B) tiene otra geometría y otros parámetros de DiffDrive (30 Hz, separación 0.38 m, radio 0.1 m). Pendiente repetir el ensayo completo.
+**Movimiento y giro** (re-medición 2026-11-22, `scratchpad/p1m81/p1_motion.py`). Secuencia en tiempo de simulación: asentar 3 s, lineal 0.2 m/s durante 5 s, parada 1 s, giro 0.5 rad/s durante 5 s, parada 1 s. En cada parada se toma la pose real de Gazebo (`ign topic -e -t /world/rbtc_room/dynamic_pose/info`), que es la referencia, y se compara con la odometría y con la IMU. Cada modo usa su topic de comando (`/cmd_vel` sin ros2_control; `/diff_drive_controller/cmd_vel_unstamped` con ros2_control). Una corrida por modo.
 
-**Movimiento tras publicar `cmd_vel` a 0.2 m/s** (lectura de `pose.position.x`) (medido con el robot anterior; re-medir). Duración real del publish según el script que generó cada corrida: `harness_false.out` usó `timeout 4` (su etiqueta decía "3 s"); `harness_true.out` usó `timeout 5` (su etiqueta decía "4 s"); `harness_false2.out`, `harness_true2.out` y el launch real usaron `timeout 5`. Las etiquetas de los `.out` no coinciden con el timeout; los datos son los del timeout. La lectura posterior se hace inmediatamente después.
+| Modo | Fase | x real (Gazebo) | x odom | yaw real | yaw odom | yaw IMU |
+|---|---|---|---|---|---|---|
+| sin ros2_control | tras lineal | 0.9856 m | 0.9856 m | 0.0000 rad | 0.0000 rad | 0.0000 rad |
+| sin ros2_control | tras giro | 0.9646 m (y 0.0218 m) | 0.9856 m (y 0) | 2.6138 rad | 2.4660 rad | 2.6138 rad |
+| con ros2_control | tras lineal | 0.9800 m | 0.9800 m | 0.0000 rad | 0.0000 rad | 0.0000 rad |
+| con ros2_control | tras giro | 0.9589 m (y 0.0222 m) | 0.9800 m (y 0) | 2.5892 rad | 2.4500 rad | 2.5892 rad |
 
-| Corrida | Topic de comando | x antes | x después |
-|---|---|---|---|
-| sin ros2_control, harness (`harness_false.out`) | `/cmd_vel` | no leído | 0.831 m |
-| sin ros2_control, harness (`harness_false2.out`) | `/cmd_vel` | −1.8e-15 | 1.04 m |
-| sin ros2_control, launch real | `/cmd_vel` | −1.8e-15 | 1.034 m (terminal, no archivado) |
-| con ros2_control, harness (`harness_true.out`) | `/diff_drive_controller/cmd_vel_unstamped` | no leído | 0.92 m |
-| con ros2_control, harness (`harness_true2.out`) | `/diff_drive_controller/cmd_vel_unstamped` | −1.8e-15 | 0.94 m |
-| con ros2_control, launch real | `/diff_drive_controller/cmd_vel_unstamped` | −1.8e-15 | 0.94 m (terminal, no archivado) |
+Lectura:
+- **El robot gira.** Tras el giro, el yaw real es 2.61 rad (sin ros2_control) y 2.59 rad (con ros2_control), frente a los 2.5 rad teóricos. Roll y pitch son 0.0000 en todo el ensayo y `z` queda en 0.1500 m: el chasis no apoya ni se inclina (la cara inferior de la caja queda a 7.5 cm del suelo). Verificado: se corrige el fallo del robot anterior.
+- **La IMU coincide con la pose real de Gazebo** (diferencia < 1e-4 rad en ambos modos). La orientación de la IMU es absoluta (parte de yaw 0), pero `orientation_covariance[8]` sigue siendo 0.
+- **La odometría subestima el giro real:** −5.7 % sin ros2_control y −5.4 % con ros2_control. En el tramo lineal, la odometría coincide con Gazebo a menos de 1 mm.
+- **Confirmación independiente (giroscopio, `p1_gyro.py`, otra corrida del mismo giro):** la integral de `/imu` `angular_velocity.z` da 2.634 rad (sin ros2_control) y 2.626 rad (con ros2_control); la integral de `twist.angular.z` de la odometría da 2.499 y 2.465 rad. El giro real es mayor que el que predice la odometría de ruedas. Causa no determinada (posible deslizamiento; NO VERIFICADO).
+- El tramo lineal da 0.9856 m y 0.9800 m frente a 1.00 m teóricos (1.4 % y 2 % menos). La causa no está determinada (NO VERIFICADO: posible arranque por aceleración).
 
-Lectura (medido con el robot anterior; re-medir): con la misma velocidad comandada, el desplazamiento medido varía entre 0.83 y 1.04 m sin ros2_control, y entre 0.92 y 0.94 m con ros2_control. La diferencia de duración de publicación (4 s en `harness_false.out` frente a 5 s en las demás) explica en parte el rango sin ros2_control; el resto no tiene causa determinada. No se ha calculado un valor teórico para comparar.
+Las corridas de `harness_*.out` del robot anterior (con tiempos de publicación y topics distintos) ya no se citan.
 
-**Harness vs launch real.** El harness (`harness.sh`, no versionado: está en el scratchpad de la sesión) bridgeaba `/cmd_vel` en los dos modos. El launch real **no** bridgea `/cmd_vel` con ros2_control: allí el comando es `/diff_drive_controller/cmd_vel_unstamped`. Los valores del harness con ros2_control se han medido sobre ese topic.
+**Retardo.** `ros2 topic delay` no es interpretable en esta ejecución: devuelve valores absolutos del orden de 1.795e9 s, tanto para `/odom` como para `/diff_drive_controller/odom` (`scratchpad/p1m81/h_delay_odom.txt`, `rc_delay_odom.txt`). Como alternativa se midió la edad en tiempo de simulación (`now_sim − header.stamp` al recibir, `scratchpad/p1m81/p1_age.py`, 8 s):
+- Sin ros2_control: `/odom` 0.00 ms (0 a 0 ms), `/imu` 0.00 ms, `/scan` 1.09 ms (1 a 3 ms).
+- Con ros2_control: `/diff_drive_controller/odom` −0.01 ms (−1 a 0 ms), `/imu` 0.00 ms, `/scan` 1.19 ms (1 a 3 ms), `/joint_states` −0.02 ms (−2 a 1 ms).
 
-**Retardo** (`ros2 topic delay`): sin medir (ver 1.2).
+Esto mide el desfase de los stamps respecto al reloj de simulación con resolución de 1 ms. **No es el retardo de transporte en tiempo real**: ese queda NO VERIFICADO. En la primera ejecución con ros2_control aparecieron algunos mensajes con stamp desfasado unos 270 s al arrancar; no se repitieron en la segunda y no está investigado.
 
 > **[OBSERVACIÓN PENDIENTE DE DANIELA]** Medir con la simulación en pantalla y completar:
 
@@ -179,19 +190,22 @@ ros2 topic delay /odom                       # retardo medio: ____ s
 ros2 topic delay /diff_drive_controller/odom # retardo medio: ____ s
 ```
 
+Valores de la re-medición del 2026-11-22 (headless, no en pantalla): `/odom` 29.41 Hz; `/diff_drive_controller/odom` 49.99 Hz; `ros2 topic delay` no interpretable (ver arriba).
+
 ### 1.6 ¿Cuál es más adecuado para un robot real?
 
-Razonamiento, **no medido**:
+Borrador: razonamiento sobre el código y sobre lo medido en simulación (no hay robot real):
 
 - El plugin nativo de Gazebo (`DiffDrive`) es una herramienta de simulación: no tiene interfaz con hardware real ni parámetros de calidad de odometría configurables desde ROS.
 - `ros2_control` separa el hardware (encoders y motores) del controlador (`diff_drive_controller`). El mismo controlador puede usarse en simulación y en el robot real cambiando solo la interfaz de hardware. Además expone `cmd_vel_timeout`, `open_loop` y parámetros de odometría.
 - Por tanto, para un robot real, el enfoque con ros2_control parece el más adecuado. Coste: más configuración (plugin, `controller_manager`, carga manual de controladores), y los topics quedan bajo `/diff_drive_controller/`.
+- Lo medido en simulación no separa los dos enfoques en precisión: ambos dan la misma odometría lineal y ambos subestiman el giro un 5 %. La diferencia medida es la frecuencia (30 Hz frente a 50 Hz) y el nombre de los topics. Esta conclusión sobre robot real es NO VERIFICADA.
 
 > **[OBSERVACIÓN PENDIENTE DE DANIELA]** Validar esta conclusión con sus resultados de 1.4 y 1.5 cuando tenga la simulación en pantalla.
 
 ## Práctica 2: EKF
 
-Medidas de esta práctica (medido con el robot anterior; re-medir): mundo `empty_world`, `headless:=true`, Ogre v1, sin ruido en la simulación. Son del robot anterior; el robot actual no se ha medido. Cada cifra viene de una corrida limpia (ver nota de 2.3). Lo que no se ha medido está marcado NO VERIFICADO.
+Medidas de esta práctica con el robot actual (persona B, `urdf/robot.urdf.xacro`): mundo `rbtc_room`, `headless:=true`, Ogre v1, sin ruido de sensor en la simulación. Una corrida limpia por caso, 2026-11-22 (ver nota de 2.3). Las cifras del robot anterior se han retirado salvo donde se indica como historial. Lo que no se ha medido está marcado NO VERIFICADO.
 
 ### 2.1 Sensores fusionados
 
@@ -202,25 +216,25 @@ Fuente: `src/dif_bot/config/ekf.yaml`, modo 2D. Orden de los 15 campos de `*_con
 | Odometría de rueda | `/odom` (gz DiffDrive) o `/diff_drive_controller/odom` (ros2_control) | `vx`, `vyaw` | La velocidad de las ruedas es la medida directa de avance y de giro. | `x`, `y`, `yaw` de la pose: son una integración de las ruedas y acumulan deriva; fusionarlos heredaría esa deriva. |
 | IMU | `/imu` (`sensor_msgs/Imu`, frame `imu_link`, 50 Hz configurados; antes 100 Hz) | `vyaw` | Es la única medida de giro que aporta la IMU. | `yaw` absoluto: no lo aporta en esta simulación (ver hallazgo). `ax`: es ruidosa y `vx` ya viene de la odometría; usarla obligaría a tratar gravedad y sesgos. |
 
-**Hallazgo (corregido, robot anterior): la IMU funcionaba; el robot no giraba físicamente.** Medido con la pose real de Gazebo (medido con el robot anterior; re-medir).
+**Hallazgo histórico (robot anterior, corregido): la IMU funcionaba; el robot no giraba físicamente.** Se midió con la pose real de Gazebo en el robot anterior. Con el robot actual el giro sí es físico (ver 2.4).
 
 - **Antes del cambio**, con `cmd_vel` angular 0.5 rad/s durante 5 s: `/odom` marcaba yaw 2.5000, pero la pose de `dif_bot` en Gazebo (`/world/empty_world/pose/info`) tenía yaw 0.0000 y `/imu` daba `orientation = (0,0,0,1)` y `angular_velocity.z = 0.0000`. Las ruedas sí giraban a ±1.5 rad/s (`/joint_states`, correcto: 0.5·0.15/0.05). Es decir, la rueda gira y el cuerpo no. La IMU dijo la verdad.
-- **Causa raíz (robot anterior):** en `urdf/robot.urdf.xacro`, la caja de `base_link` (0.4 × 0.25 × 0.1, centrada en `base_link`) tenía su cara inferior a z = 0 del suelo, la misma altura que el fondo de las ruedas. El chasis apoyaba plano sobre el suelo con fricción (mu = 1 por defecto), y esa fricción frenaba el giro sobre sí mismo. En línea recta no se notaba: `x` era correcto (1.010 m reales frente a 1.0 de odometría) (medido con el robot anterior; re-medir). Esa caja ya no existe: el robot actual tiene caja de 0.4 × 0.3 × 0.15 centrada en `base_link`, con cara inferior a z = -0.075 (por encima del fondo de las ruedas, z = -0.15). Por geometría no debería apoyar en el suelo, pero NO VERIFICADO en simulación.
+- **Causa raíz (robot anterior):** en `urdf/robot.urdf.xacro`, la caja de `base_link` (0.4 × 0.25 × 0.1, centrada en `base_link`) tenía su cara inferior a z = 0 del suelo, la misma altura que el fondo de las ruedas. El chasis apoyaba plano sobre el suelo con fricción (mu = 1 por defecto), y esa fricción frenaba el giro sobre sí mismo. En línea recta no se notaba: `x` era correcto (1.010 m reales frente a 1.0 de odometría) (robot anterior). Esa caja ya no existe: el robot actual tiene caja de 0.4 × 0.3 × 0.15 centrada en `base_link`, con cara inferior a z = -0.075 (por encima del fondo de las ruedas, z = -0.15). No se ha medido si el chasis toca el suelo con el robot actual: NO VERIFICADO. Lo que sí se midió es que el robot actual gira (2.4).
 - **Cambio (robot anterior):** caja de `base_link` (visual y collision) con `<origin xyz="0 0 0.02">`, 2 cm de holgura. Ruedas, ejes, frames y nombres de topics sin cambios. Se probó también 5 cm: el robot quedó inclinado unos 0.25 rad al reposar, así que se descartó.
-- **Después** (sin EKF, mismo ensayo) (medido con el robot anterior; re-medir): yaw real de gz 2.7753; `/imu` yaw 2.7753 (coincide con gz); `/imu` `angular_velocity.z = 0.5527` a mitad del giro y 0.0 al parar; `/odom` yaw 2.5000. La orientación del IMU ya es válida, pero `orientation_covariance[8]` sigue siendo 0 (gz no la publica).
+- **Después** (robot anterior, sin EKF, mismo ensayo): yaw real de gz 2.7753; `/imu` yaw 2.7753 (coincide con gz); `/imu` `angular_velocity.z = 0.5527` a mitad del giro y 0.0 al parar; `/odom` yaw 2.5000. La orientación del IMU ya es válida, pero `orientation_covariance[8]` sigue siendo 0 (gz no la publica).
 - **Pendiente, no resuelto** (robot anterior): en reposo el robot queda con pitch de unos 0.1 rad, apoyado en la esquina delantera de la caja. El centro de masas, calculado con las masas del URDF, queda unos 1 mm por delante del eje de ruedas. Es un ajuste de masas o del caster y no se ha tocado.
-- **Pendiente, no determinado:** `/odom` subestima el giro real en ~10% (2.5 frente a 2.7753) (medido con el robot anterior; re-medir). A mitad del giro el cuerpo va a 0.55 rad/s frente a los 0.5 que predice la cinemática de ruedas. No se ha determinado la causa (posible deslizamiento). NO VERIFICADO.
+- **Pendiente, no determinado:** con el robot actual `/odom` subestima el giro real en ~6% (2.5000 frente a 2.6623 rad, en las tres configuraciones de 2.4). La separación de ruedas de la URDF es 0.38 (y = ±0.19), igual que `wheel_separation` en `config/controllers*.yaml`, así que la diferencia no viene de ese parámetro. No se ha determinado la causa (posible deslizamiento). NO VERIFICADO.
 - **Decisión sobre `imu0_config`:** se mantiene `vyaw` de la IMU. El yaw absoluto sigue sin fusionarse porque su covarianza es 0 y robot_localization la trataría como medida exacta. Esto se documenta en `config/ekf.yaml`.
 - No se ha cambiado `process_noise_covariance` ni se ha añadido ruido de sensor. NO VERIFICADO: si un ruido de medida mayor en la IMU mejora algo.
 
 ### 2.2 Frame que publica el EKF
 
-- El EKF publica `odom -> base_link` (`world_frame: odom`, `publish_tf: true`). Verificado con `ros2 topic echo --once /odom_filtered` (medido con el robot anterior; re-medir): `header.frame_id: odom`, `child_frame_id: base_link`.
+- El EKF publica `odom -> base_link` (`world_frame: odom`, `publish_tf: true`). Verificado con `view_frames` (`base_link` con padre `odom`, 30.2 Hz) y con el conteo de aristas de 2.3 (robot actual, 2026-11-22). No se repitió `ros2 topic echo --once /odom_filtered` en esta tanda: `header.frame_id` y `child_frame_id` de `/odom_filtered` quedan NO VERIFICADOS en esta tanda.
 - `map -> odom` **no** lo publica el EKF. Lo publica un `static_transform_publisher` identidad lanzado por `ekf.launch.py` (argumento `launch_static_map_odom`, por defecto `true`). Es **provisional**: cuando SLAM o AMCL publiquen `map -> odom`, lanzar con `launch_static_map_odom:=false` para no tener dos publicadores de `map -> odom`.
 - Con `use_ekf:=true` la odometría de rueda no publica `odom -> base_link`:
   - gz DiffDrive: `tf_topic` apunta a `/tf_ekf_disabled` (no se bridgea), y `/tf` no se bridgea. Sin `use_ekf` no cambia nada.
-  - ros2_control: se carga `config/controllers_ekf.yaml` (copia de `controllers.yaml` con `enable_odom_tf: false`). Verificado con `ros2 param get /diff_drive_controller enable_odom_tf` (medido con el robot anterior; re-medir): `Boolean value is: False`.
-- Con `use_ekf:=true` solo cambia el `tf_topic` del plugin DiffDrive en `gz_control.xacro` (`/tf_ekf_disabled`), y en ros2_control el yaml del controlador (`controllers_ekf.yaml`). Esto se deriva del URDF actual; no re-verificado en ejecución.
+  - ros2_control: se carga `config/controllers_ekf.yaml` (copia de `controllers.yaml` con `enable_odom_tf: false`). Verificado con `ros2 param get /diff_drive_controller enable_odom_tf` (robot actual, 2026-11-22, caso C): `Boolean value is: False`.
+- Con `use_ekf:=true` solo cambia el `tf_topic` del plugin DiffDrive en `gz_control.xacro` (`/tf_ekf_disabled`), y en ros2_control el yaml del controlador (`controllers_ekf.yaml`). Verificado en ejecución (casos A, B y C, ver 2.3): con `use_ekf:=true` la única arista `odom -> base_link` es la del EKF.
 
 ### 2.3 Verificación del árbol TF
 
@@ -240,18 +254,18 @@ Qué comprobar:
 - `robot_state_publisher` publica las ruedas y los links fijos, pero no `odom`.
 - En modo ros2_control, `diff_drive_controller` aparece como publicador registrado en `/tf`. Eso no basta para decir que publica TF: con `enable_odom_tf: false` no envía `odom -> base_link`. Se comprueba con el parámetro (ver 2.2) y contando las aristas que llegan a `/tf`.
 
-Resultados medidos (medido con el robot anterior; re-medir):
+Resultados medidos (robot actual, 2026-11-22):
 
-- `view_frames` (gz, con IMU): árbol `map -> odom -> base_link`, con `base_link -> left_wheel_link` y `right_wheel_link` (20.2 Hz) y sensores. `odom -> base_link` a 30.2 Hz. El PDF está en `scratchpad/caso1e_ekf_imu/frames_2026-11-22_17.00.00.pdf` (fuera del repo).
-- `tf2_echo map base_link` (antes del movimiento) (medido con el robot anterior; re-medir): identidad (traslación 0, cuaternión `0 0 0 1`). NO VERIFICADO tras el movimiento.
-- `ros2 topic info /tf -v` (gz, con IMU): 2 publicadores, `ekf_filter_node` y `robot_state_publisher`.
+- `view_frames` (caso A, gz con IMU): árbol `map -> odom -> base_link`, con `base_link -> left_wheel` y `right_wheel` (20.2 Hz), casters y sensores (`imu_link`, `laser_frame`). `odom -> base_link` a 30.2 Hz. Copia del PDF dentro del repo: `src/dif_bot/docs/evidencias/frames_ekf.pdf` (16 KB). Para regenerarlo: `ros2 run tf2_tools view_frames` en el directorio de trabajo.
+- `tf2_echo map base_link` (caso A, tras el movimiento, t ≈ 66.6 s de simulación): traslación (1.002, −0.000, 0.000), yaw 2.615 rad. Coincide con `/odom_filtered` en ese instante, porque `map -> odom` es identidad. La medida previa de identidad (antes del movimiento) de la versión anterior no se ha repetido: NO VERIFICADO.
+- `ros2 topic info /tf -v` (caso A, gz con IMU): 2 publicadores, `ekf_filter_node` y `robot_state_publisher`. Caso C (ros2_control): 3 publicadores registrados, `ekf_filter_node`, `robot_state_publisher` y `diff_drive_controller` (este último con `enable_odom_tf: false`, ver 2.2).
 - Aristas en `/tf`:
-  - gz, con IMU: 94 mensajes con `odom -> base_link` en una ventana de 5 s. La cifra es baja porque la ventana incluye el arranque del nodo; no es la tasa del EKF.
-  - ros2_control, sonda dedicada (8 s): 241 mensajes con `odom -> base_link`, 30.1 Hz, con `diff_drive_controller` registrado en `/tf` pero con `enable_odom_tf: false`. Si el controlador también publicara esa arista, la cuenta sería mayor (~80 Hz).
+  - Caso A (gz, con IMU): 241 mensajes con `odom -> base_link` en 8 s (30.1 Hz). Caso B (sin IMU): 235 en 8 s (29.4 Hz).
+  - Caso C (ros2_control): 241 mensajes con `odom -> base_link` en 8 s (30.1 Hz), con `diff_drive_controller` registrado en `/tf` pero con `enable_odom_tf: false`. Si el controlador también publicara esa arista, la cuenta sería mayor (~80 Hz).
 - `tf2_monitor` no concluyó: reportó `<no authority available>` para `odom` y `base_link`. No lo uso como prueba.
 - `view_frames` muestra `Broadcaster: default_authority`, sin nombre de nodo. Para saber quién publica, usar `topic info` y el conteo de aristas.
 
-> Nota de entorno: en la primera tanda, procesos huérfanos de corridas anteriores (`parameter_bridge` y `static_transform_publisher`) publicaban `/clock` a la vez. Hubo 7365 retrocesos de `/clock` en 15 s, y el EKF y `robot_state_publisher` avisaban "jump back in time" (86 veces en el EKF) (medido con el robot anterior; re-medir). Tras matarlos, `/clock` no tuvo retrocesos. Las cifras de este informe son solo de corridas limpias.
+> Nota de entorno: en la primera tanda, procesos huérfanos de corridas anteriores (`parameter_bridge` y `static_transform_publisher`) publicaban `/clock` a la vez. Hubo 7365 retrocesos de `/clock` en 15 s, y el EKF y `robot_state_publisher` avisaban "jump back in time" (86 veces en el EKF) (medido con el robot anterior; re-medir). Tras matarlos, `/clock` no tuvo retrocesos. En la tanda actual (casos A, B y C) no aparece ningún "jump back in time" en `sim.log` ni en `ekf.log`. Las cifras de este informe son solo de corridas limpias.
 
 ### 2.4 Comparación /odom vs /odom_filtered
 
@@ -266,25 +280,29 @@ ros2 run plotjuggler plotjuggler
 
 NO VERIFICADO: no se han abierto `rqt_plot` ni PlotJuggler (son GUI y no se ha hecho captura en esta sesión).
 
-**Prueba de movimiento** (medido con el robot anterior; re-medir) (tras el cambio del chasis, 2.1). Secuencia: lineal 0.2 m/s durante 5 s, parada 1 s, giro 0.5 rad/s durante 5 s, parada 1 s. La medida se toma al final de cada fase, con reloj de simulación. El yaw se calcula desde el cuaternión: `yaw = atan2(2(w·z + x·y), 1 − 2(y² + z²))`. La referencia es la pose de Gazebo, leída antes y después del movimiento (`gz` antes: x = 0.0000 m, yaw 0.0000; después: x = 1.0098 m, y = −0.0018 m, yaw 2.7753 rad).
+**Prueba de movimiento** (robot actual, 2026-11-22, una corrida por caso). Secuencia: lineal 0.2 m/s durante 5 s, parada 1 s, giro 0.5 rad/s durante 5 s, parada 1 s. La medida se toma al final de cada fase, con reloj de simulación. El yaw se calcula desde el cuaternión: `yaw = atan2(2(w·z + x·y), 1 − 2(y² + z²))`. La referencia es la pose de Gazebo (`/world/rbtc_room/pose/info`), leída antes y después del movimiento: `gz` antes x = 0.0000 m, yaw 0.0000; después, caso A: x = 0.9814 m, y = 0.0196 m, yaw 2.6623 rad; casos B y C: x = 0.9812 m, y = 0.0196 m, yaw 2.6621 rad. Con ros2_control (caso C) el comando va a `/diff_drive_controller/cmd_vel_unstamped`, no a `cmd_vel` (con `use_stamped_vel: false` el controlador no escucha `/diff_drive_controller/cmd_vel`).
 
-| Corrida | Topic | `yaw` a mitad de giro | `yaw` final | `x`, `y` final |
+| Caso | Topic | `yaw` a mitad de giro | `yaw` final | `x`, `y` final |
 |---|---|---|---|---|
-| Referencia (pose de gz) | — | — | 2.7753 | 1.0098, −0.0018 |
-| sin EKF | `/odom` | 1.2395 | 2.5000 | 1.0000, 0.0000 |
-| sin EKF | `/imu` (yaw) | 1.3790 | 2.7753 | — |
-| EKF con IMU (`vyaw` de IMU) | `/odom` | 1.2460 | 2.5000 | 1.0000, 0.0000 |
-| EKF con IMU | `/odom_filtered` | 1.3219 | 2.6959 | 1.0001, −0.0001 |
-| EKF sin IMU | `/odom` | 1.2400 | 2.5000 | 1.0000, 0.0000 |
-| EKF sin IMU | `/odom_filtered` | 1.2200 | 2.5000 | 1.0002, −0.0003 |
+| Referencia gz (A) | — | — | 2.6623 | 0.9814, 0.0196 |
+| A: EKF con IMU (`vyaw` de IMU) | `/odom` | 1.2340 | 2.5000 | 1.0002, 0.0000 |
+| A: EKF con IMU | `/odom_filtered` | 1.3308 | 2.6149 | 1.0019, −0.0002 |
+| A: EKF con IMU | `/imu` (yaw) | 1.3915 | 2.6623 | — |
+| Referencia gz (B y C) | — | — | 2.6621 | 0.9812, 0.0196 |
+| B: EKF sin IMU | `/odom` | 1.2370 | 2.5000 | 1.0000, 0.0000 |
+| B: EKF sin IMU | `/odom_filtered` | 1.2240 | 2.4990 | 1.0013, −0.0004 |
+| B: `/imu` (no fusionada) | `/imu` (yaw) | 1.3856 | 2.6621 | — |
+| C: ros2_control + EKF con IMU | `/diff_drive_controller/odom` | 1.2400 | 2.5000 | 1.0000, −0.0000 |
+| C: ros2_control + EKF con IMU | `/odom_filtered` | 1.2907 | 2.5813 | 1.0001, −0.0001 |
+| C: ros2_control + EKF con IMU | `/imu` (yaw) | 1.3752 | 2.6621 | — |
 
 Lectura:
 
-- **Error de yaw frente a la referencia (2.7753 rad)** (medido con el robot anterior; re-medir): odometría 0.275 rad (−9.9%); EKF con IMU 0.079 rad (−2.9%); EKF sin IMU 0.275 rad, igual que la odometría.
-- **Con la IMU, el EKF mejora el giro** frente a la odometría (medido con el robot anterior; re-medir). Antes del cambio del chasis, la misma comparación daba 0.625 rad con IMU, pero entonces el robot no giraba y ese resultado queda descartado.
-- **Sin IMU, el EKF reproduce la odometría** (medido con el robot anterior; re-medir) (diferencias de 2e-4 m en x y 3e-4 m en y), que es lo esperable sin ruido: no hay nada que corregir.
-- Frecuencias (medido con el robot anterior; re-medir): `/odom_filtered` 29.98–30.00 Hz (medido antes del cambio; NO RE-MEDIDO tras él, el cambio no debería afectar a la frecuencia). Las filas de ros2_control de la versión anterior de esta tabla eran de antes del cambio y se han quitado: **re-medir** `/diff_drive_controller/odom` y su EKF con este mismo ensayo.
-- Se ha comprobado la pose física del robot con `ign topic -e -t /world/empty_world/pose/info`, que sí funciona en este entorno (con `IGN_PARTITION=iamu77`). El giro real de gz coincide con el yaw del IMU.
+- **Error de yaw frente a la referencia de gz** (referencia 2.6622 rad, media de A, B y C): odometría 0.162 rad (−6.1%) en las tres configuraciones; EKF con IMU 0.047 rad (−1.8%) en A y 0.081 rad (−3.0%) en C; EKF sin IMU 0.163 rad (−6.1%), igual que la odometría.
+- **Con la IMU, el EKF reduce el error de giro** frente a la odometría: de 0.162 a 0.047 rad en A y a 0.081 rad en C. La IMU de la simulación no tiene ruido y su orientación coincide con la pose de gz (2.6623 frente a 2.6623), así que esta mejora es la de un sensor ideal; con una IMU real habría que medirla de nuevo. NO VERIFICADO: no se sabe por qué C mejora menos que A (no investigado).
+- **Sin IMU, el EKF reproduce la odometría** (B: 2.4990 frente a 2.5000 rad; diferencias de 1.3e-3 m en x y 4e-4 m en y), que es lo esperable sin ruido: no hay nada que corregir.
+- Frecuencias (`ros2 topic hz`, tiempo de pared; P1 simulaba en el mismo equipo): `/odom` 29.4 Hz (A y B); `/diff_drive_controller/odom` 50.0 Hz (C); `/odom_filtered` 30.0 Hz en A y C y 29.4 Hz en B; `/imu` 50.0 Hz. Con el equipo cargado, la tasa de pared puede quedar por debajo de la de simulación: NO VERIFICADO en tiempo de simulación.
+- La pose física del robot se lee con `ign topic -e -t /world/rbtc_room/pose/info` (con `IGN_PARTITION=p2m82`). En las tres corridas el yaw de gz coincide con el yaw de `/imu`.
 
 ### 2.5 Efecto de desactivar la IMU
 
@@ -299,7 +317,7 @@ ros2 launch dif_bot ekf.launch.py use_imu:=false
 ros2 topic hz /odom_filtered
 ```
 
-Con el mismo movimiento de 2.4 y el chasis corregido (medido con el robot anterior; re-medir), el yaw final de `/odom_filtered` es 2.6959 rad con IMU y 2.5000 rad sin IMU (igual que `/odom`). Frente a la referencia de gz (2.7753 rad), la IMU reduce el error de 0.275 a 0.079 rad. Las cifras anteriores de esta sección (0.6250 rad con IMU) eran de un robot que no giraba y quedan descartadas. No se ha probado con ruido de sensor.
+Con el mismo movimiento de 2.4 y con el robot actual (2026-11-22), el yaw final de `/odom_filtered` es 2.6149 rad con IMU (caso A) y 2.4990 rad sin IMU (caso B; `/odom` 2.5000). Frente a la referencia de gz (2.6622 rad), la IMU reduce el error de 0.163 a 0.047 rad. Las cifras del robot anterior (referencia 2.7753 rad) quedan retiradas. No se ha probado con ruido de sensor.
 
 > **[OBSERVACIÓN PENDIENTE DE DANIELA]** En pantalla (Gazebo con GUI, sin `headless`), repetir el giro de 5 s a 0.5 rad/s con `use_imu:=true` y con `use_imu:=false` y anotar:
 > - yaw final de `/odom`: ______
