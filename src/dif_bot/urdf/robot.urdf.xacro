@@ -161,6 +161,7 @@
     <sensor name="gpu_lidar" type="gpu_lidar">
       <pose relative_to="lidar_link">0 0 0 0 0 0</pose>
       <topic>scan</topic>
+      <ignition_frame_id>lidar_link</ignition_frame_id>
       <update_rate>10</update_rate>
       <always_on>true</always_on>
       <visualize>true</visualize>
@@ -186,6 +187,7 @@
     <sensor name="imu_sensor" type="imu">
       <pose relative_to="imu_link">0 0 0 0 0 0</pose>
       <topic>imu</topic>
+      <ignition_frame_id>imu_link</ignition_frame_id>
       <update_rate>100</update_rate>
       <always_on>true</always_on>
       <visualize>false</visualize>
@@ -196,6 +198,7 @@
     <sensor name="camera" type="camera">
       <pose relative_to="camera_link">0 0 0 0 0 0</pose>
       <topic>camera/image_raw</topic>
+      <ignition_frame_id>camera_link</ignition_frame_id>
       <update_rate>10</update_rate>
       <always_on>true</always_on>
       <visualize>true</visualize>
