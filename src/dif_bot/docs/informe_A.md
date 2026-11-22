@@ -1,5 +1,7 @@
 # Informe Persona A
 
+**Autora:** Daniela Molina (Prácticas 1 y 2: control/odometría y EKF)
+
 > El robot `dif_bot` y el mundo fueron **generados por el equipo** (no son material de la cátedra). Se usan como base para las prácticas.
 >
 > **Estado del robot:** desde el merge con persona B, el robot es el de persona B (`urdf/robot.urdf.xacro`, con argumentos `use_ros2_control` y `use_ekf`) y el mundo por defecto es `rbtc_room`. **Las cifras de este informe son del robot anterior** (con `base_footprint`, `lidar_link`, `camera_link` y mundo `empty_world`) y deben re-medirse con el robot actual. Las tablas de joints, sensores y frames de 1.1, y los parámetros de DiffDrive y de los controladores, se han actualizado al URDF actual.

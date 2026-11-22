@@ -9,8 +9,8 @@ Incluye: control y odometría con alternativa `ros2_control` (Práctica 1, perso
 | Persona | Responsable | Prácticas |
 |---|---|---|
 | A | Daniela Molina | Prácticas 1 y 2: control/odometría y EKF |
-| B | por definir | SLAM y AMCL (Prácticas 3 y 4) |
-| C | por definir | Nav2 y misión |
+| B | Tomas Alvarez Jaimes | SLAM y AMCL (Prácticas 3 y 4) |
+| C | Santiago Chacon Guerrero | Nav2 y misión |
 
 Ramas individuales: `persona-a`, `persona-b`, `persona-c`. Todo entra a `main` mediante PR.
 
