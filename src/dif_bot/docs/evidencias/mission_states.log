@@ -1,0 +1,19 @@
+[mission_node.py-1] [INFO] [1795385170.940443503] [mission_manager]: {"state": "idle"}
+[mission_node.py-1] [INFO] [1795385177.773146872] [mission_manager]: {"state": "waiting_for_nav2"}
+[mission_node.py-1] [INFO] [1795385177.774504153] [mission_manager]: {"state": "navigating", "waypoint": 1, "name": "sur", "total": 4}
+[mission_node.py-1] [INFO] [1795385268.913333904] [mission_manager]: {"state": "canceled", "waypoint": 1}
+[mission_node.py-1] [INFO] [1795385289.170022383] [mission_manager]: {"state": "waiting_for_nav2"}
+[mission_node.py-1] [INFO] [1795385289.178487761] [mission_manager]: {"state": "navigating", "waypoint": 1, "name": "sur", "total": 4}
+[mission_node.py-1] [INFO] [1795385425.102770704] [mission_manager]: {"state": "canceled", "waypoint": 1}
+[mission_node.py-1] [INFO] [1795385451.383905024] [mission_manager]: {"state": "waiting_for_nav2"}
+[mission_node.py-1] [INFO] [1795385480.894312914] [mission_manager]: {"state": "failed", "reason": "Nav2 action server unavailable after 30 seconds"}
+[mission_node.py-1] [INFO] [1795385645.737950728] [mission_manager]: {"state": "waiting_for_nav2"}
+[mission_node.py-1] [INFO] [1795385645.739129502] [mission_manager]: {"state": "navigating", "waypoint": 1, "name": "sur", "total": 4}
+[mission_node.py-1] [INFO] [1795385646.555991516] [mission_manager]: {"state": "waypoint_reached", "waypoint": 1}
+[mission_node.py-1] [INFO] [1795385646.558018204] [mission_manager]: {"state": "navigating", "waypoint": 2, "name": "suroeste", "total": 4}
+[mission_node.py-1] [INFO] [1795385651.623445099] [mission_manager]: {"state": "waypoint_reached", "waypoint": 2}
+[mission_node.py-1] [INFO] [1795385651.625158693] [mission_manager]: {"state": "navigating", "waypoint": 3, "name": "oeste", "total": 4}
+[mission_node.py-1] [INFO] [1795385657.900708687] [mission_manager]: {"state": "waypoint_reached", "waypoint": 3}
+[mission_node.py-1] [INFO] [1795385657.903919434] [mission_manager]: {"state": "navigating", "waypoint": 4, "name": "origen", "total": 4}
+[mission_node.py-1] [INFO] [1795385662.719744658] [mission_manager]: {"state": "waypoint_reached", "waypoint": 4}
+[mission_node.py-1] [INFO] [1795385662.720668497] [mission_manager]: {"state": "succeeded", "completed": 4}
