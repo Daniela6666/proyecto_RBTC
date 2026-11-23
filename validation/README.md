@@ -2,7 +2,7 @@
 
 Ejecutar desde la raiz del workspace, en Ubuntu 22.04 + ROS 2 Humble + Gazebo Fortress.
 Dependencias adicionales del evaluador: python3-numpy, python3-pil y python3-yaml.
-El evaluador utiliza ROS_DOMAIN_ID=43 e IGN_PARTITION=rbtc_batch para aislar las pruebas.
+El evaluador utiliza ROS_DOMAIN_ID=43 e una IGN_PARTITION unica por ejecucion (rbtc_validation_<UUID>) para aislar las pruebas.
 Ejecutar los casos secuencialmente; cada caso inicia y detiene sus propios procesos.
 En WSL, los sensores Ogre requieren WSLg (DISPLAY=:0), aunque no se abra la GUI.
 

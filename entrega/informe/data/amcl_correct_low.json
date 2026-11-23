@@ -1,0 +1,10 @@
+{
+  "case": "amcl_correct_low",
+  "noise_stddev_m": 0.01,
+  "incorrect_initial_pose": false,
+  "samples": 113,
+  "convergence_sim_s": 0.0699999999999994,
+  "final_position_error_m": 0.00845191164037102,
+  "final_yaw_error_rad": 0.050235173663814345,
+  "p95_position_error_m": 0.06956108332122234
+}

@@ -47,4 +47,5 @@
   <export>
     <build_type>ament_cmake</build_type>
   </export>
+  <exec_depend>nav2_rotation_shim_controller</exec_depend>
 </package>

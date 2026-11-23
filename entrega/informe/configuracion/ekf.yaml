@@ -1,0 +1,74 @@
+# Configuracion del EKF de robot_localization (ekf_node), modo 2D.
+# Lanzado por launch/ekf.launch.py, que sobreescribe odom0, imu0_config y use_sim_time.
+# Entrada: /odom (o /diff_drive_controller/odom con ros2_control) y /imu.
+# Salida: odometry/filtered remapeado a /odom_filtered, y TF odom -> base_link.
+
+ekf_filter_node:
+  ros__parameters:
+    # Frecuencia de la prediccion/correccion del filtro (Hz).
+    frequency: 30.0
+
+    # Modo 2D: fuerza z, roll y pitch a cero. El robot es diferencial plano.
+    two_d_mode: true
+
+    # El EKF publica el TF odom -> base_link. Por eso la odometria de rueda
+    # NO debe publicarlo (ver use_ekf en sim.launch.py).
+    publish_tf: true
+
+    # Frames. world_frame = odom: el EKF estima la pose en el frame odom.
+    # map -> odom no lo publica el EKF; lo pone ekf.launch.py (provisional).
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom
+
+    # Tiempo de simulacion (/clock del puente de Gazebo).
+    use_sim_time: true
+
+    # ---------------------------------------------------------------
+    # odom0: odometria de rueda (/odom en modo gz DiffDrive).
+    # Orden de los 15 elementos de *_config:
+    #   [x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
+    # Se fusiona solo la velocidad lineal vx y la angular vyaw:
+    #  - vx: la velocidad de las ruedas es la medida directa del avance.
+    #  - vyaw: la velocidad de giro de la odometria complementa a la IMU.
+    # NO se fusiona la pose (x, y, yaw) de la odometria: es una integracion de
+    # las ruedas y acumula deriva; fusionarla haria que el EKF herede esa deriva.
+    # El yaw absoluto lo aporta la IMU (ver imu0).
+    odom0: /odom
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, true,
+                   false, false, false]
+    odom0_differential: false
+    odom0_relative: false
+    odom0_queue_size: 10
+
+    # ---------------------------------------------------------------
+    # imu0: IMU de Gazebo (/imu, sensor_msgs/Imu, frame imu_link, 50 Hz).
+    # Se fusiona solo vyaw (velocidad angular alrededor de z): medida directa del giro.
+    # NO se fusiona yaw (orientacion absoluta). Tras corregir el chasis (informe 2.1)
+    # el yaw de /imu sigue al giro real de gz, pero gz no publica covarianza de
+    # orientacion (orientation_covariance[8] = 0). Con covarianza 0 robot_localization
+    # trata la medida como exacta; hasta tener una covarianza valida no se fusiona yaw.
+    # NO se fusiona ax: la aceleracion lineal es ruidosa y la velocidad lineal
+    # ya viene de la odometria; con ax activo habria que tratar gravedad y sesgos.
+    # Si algun dia se activa ax, imu0_remove_gravitational_acceleration debe ser true.
+    imu0: /imu
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_differential: false
+    imu0_relative: false
+    imu0_queue_size: 10
+    # Solo relevante si ax esta activo (aqui no lo esta). Dejado en true por seguridad.
+    # Nota: el yaw absoluto de la IMU se desactiva (ver arriba), aunque sea imu0_relative false.
+    imu0_remove_gravitational_acceleration: true
+
+    # ---------------------------------------------------------------
+    # Ruido de proceso y covarianzas iniciales: valores por defecto de robot_localization.
+    # Las covarianzas de los mensajes (odometria/IMU) se usan como ruido de medida.
+    # (Si las covarianzas del IMU de gz llegan a 0, ver informe 2.1.)

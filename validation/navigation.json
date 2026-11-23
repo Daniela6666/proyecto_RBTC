@@ -1,5 +1,9 @@
 {
   "single_goal_status": 4,
+  "single_goal_xy": [
+    -0.85,
+    0.0
+  ],
   "blocked_goal_status": 6,
   "observed_recovery_events": 4,
   "start_accepted": true,
@@ -9,8 +13,8 @@
     "state": "succeeded",
     "completed": 4
   },
+  "use_ekf": true,
   "robot": "robot.urdf.xacro",
   "map": "rbtc_room.yaml",
-  "noise_stddev_m": 0.01,
-  "use_ekf": true
+  "noise_stddev_m": 0.01
 }

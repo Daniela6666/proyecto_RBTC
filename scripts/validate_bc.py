@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Measured Gazebo trials. Run using scripts/humble.sh python3 scripts/validate_bc.py CASE."""
-import os
+import os, uuid
 os.environ['ROS_DOMAIN_ID']='43'
-os.environ['IGN_PARTITION']='rbtc_batch'
+os.environ['IGN_PARTITION']='rbtc_validation_'+uuid.uuid4().hex
 os.environ['LIBGL_ALWAYS_SOFTWARE']='1'
 os.environ.setdefault('DISPLAY',':0')
 import sys, math, time, signal, subprocess, json, csv, shutil
@@ -28,16 +28,36 @@ def launch(label,args):
     PROCS.append((proc,f)); return proc
 
 def cleanup():
+    # Snapshot descendants before launch exits and Gazebo is reparented to init.
+    parents={int(pid):int(ppid) for pid,ppid in (line.split() for line in subprocess.check_output(['ps','-eo','pid=,ppid='],text=True).splitlines())}
+    owned={proc.pid for proc,_ in PROCS}
+    while True:
+        descendants={pid for pid,ppid in parents.items() if ppid in owned}
+        if descendants <= owned:break
+        owned |= descendants
     for proc,f in reversed(PROCS):
         try:os.killpg(proc.pid,signal.SIGINT)
         except ProcessLookupError:pass
     for proc,f in reversed(PROCS):
-        try:proc.wait(timeout=8)
+        try:proc.wait(timeout=30)
         except subprocess.TimeoutExpired:
-            try:os.killpg(proc.pid,signal.SIGKILL)
+            try:os.killpg(proc.pid,signal.SIGTERM)
             except ProcessLookupError:pass
-            proc.wait(timeout=3)
         f.close()
+    for pid in owned:
+        try:os.kill(pid,signal.SIGTERM)
+        except ProcessLookupError:pass
+    deadline=time.monotonic()+5
+    remaining=set(owned)
+    while remaining and time.monotonic()<deadline:
+        remaining={pid for pid in remaining if Path('/proc/'+str(pid)).exists()}
+        if remaining:time.sleep(.1)
+    for pid in remaining:
+        try:os.kill(pid,signal.SIGKILL)
+        except ProcessLookupError:pass
+    for proc,f in PROCS:
+        try:proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:pass
     PROCS.clear()
 
 def yaw(q):return math.atan2(2*(q.w*q.z+q.x*q.y),1-2*(q.y*q.y+q.z*q.z))

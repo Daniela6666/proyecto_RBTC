@@ -124,7 +124,7 @@ controller_server:
       xy_goal_tolerance: 0.15
       yaw_goal_tolerance: 0.2
     FollowPath:
-      plugin: dwb_core::DWBLocalPlanner
+      plugin: nav2_rotation_shim_controller::RotationShimController
       debug_trajectory_details: true
       min_vel_x: 0.0
       min_vel_y: 0.0
@@ -169,6 +169,12 @@ controller_server:
       RotateToGoal.scale: 32.0
       RotateToGoal.slowing_factor: 5.0
       RotateToGoal.lookahead_time: -1.0
+      primary_controller: dwb_core::DWBLocalPlanner
+      angular_dist_threshold: 0.5
+      forward_sampling_distance: 0.5
+      rotate_to_heading_angular_vel: 0.5
+      max_angular_accel: 0.8
+      simulate_ahead_time: 1.0
     odom_topic: /odom
 local_costmap:
   local_costmap:

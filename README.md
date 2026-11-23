@@ -210,3 +210,11 @@ Las pruebas reproducibles y sus datos estan en [validation/](validation/README.m
 - B/C verificadas: mapa completo, ensayos SLAM lento/rapido, cuatro condiciones de AMCL, meta individual, recuperaciones, cancelacion y mision de 4/4 puntos con EKF. Datos y comandos en validation/.
 - Compilacion y pruebas unitarias verificadas en un clon limpio, con dependencias instaladas.
 - Video e informe final quedan fuera de esta entrega de codigo.
+
+## Informe final y entrega
+
+- [Informe PDF](entrega/informe/Informe_Robotica_Movil.pdf)
+- [Proyecto LaTeX para Overleaf](entrega/Informe_Robotica_Movil_Overleaf.zip)
+- [Fuentes, figuras y datos](entrega/informe/)
+
+El informe integrado cubre P1-P5 y la mision final. Sus resultados B/C corresponden a la ultima tanda aislada. Las notas iniciales de los informes por persona son historicas; consultar el informe integrado para el estado validado y sus limitaciones. El video es un entregable separado.

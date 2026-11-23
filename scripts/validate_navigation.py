@@ -25,7 +25,7 @@ def main():
         m.pose.pose.position.x=p.position.x;m.pose.pose.position.y=p.position.y
         a=yaw(p.orientation);m.pose.pose.orientation.z=math.sin(a/2);m.pose.pose.orientation.w=math.cos(a/2)
         m.pose.covariance[0]=.1;m.pose.covariance[7]=.1;m.pose.covariance[35]=.1
-        n.initial.publish(m);n.hold(5,w=.2)
+        n.initial.publish(m);n.hold(5)
         for node in ['amcl','planner_server','controller_server','bt_navigator','behavior_server']:
             c=n.create_client(GetState,'/'+node+'/get_state');deadline=time.monotonic()+60
             while request(c,GetState.Request()).current_state.id!=3:
@@ -34,10 +34,10 @@ def main():
         log('LIFECYCLE_ACTIVE')
         ac=ActionClient(n,NavigateToPose,'navigate_to_pose')
         if not ac.wait_for_server(timeout_sec=30):raise TimeoutError('navigate_to_pose')
-        goal=NavigateToPose.Goal();goal.pose.header.frame_id='map';goal.pose.pose.position.y=-.5;goal.pose.pose.orientation.w=1.
+        goal=NavigateToPose.Goal();goal.pose.header.frame_id='map';goal.pose.pose.position.x=-.85;goal.pose.pose.orientation.w=1.
         f=ac.send_goal_async(goal);n.wait(f.done,30);handle=f.result()
         if not handle.accepted:raise RuntimeError('manual goal rejected')
-        f=handle.get_result_async();n.wait(f.done,180);result['single_goal_status']=f.result().status
+        f=handle.get_result_async();n.wait(f.done,180);result['single_goal_status']=f.result().status;result['single_goal_xy']=[-.85,0.0]
         if f.result().status!=4:raise RuntimeError('single goal failed')
         log('SINGLE_GOAL_SUCCEEDED')
         # A goal inside box_C exercises the configured recovery tree.

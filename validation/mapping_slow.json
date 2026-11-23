@@ -1,14 +1,14 @@
 {
   "resolution_m": 0.05,
-  "width": 172,
-  "height": 164,
-  "known_free_space_fraction": 1.0,
-  "occupied_distance_mean_m": 0.029989587386476526,
-  "occupied_distance_p95_m": 0.1049999999999991,
+  "width": 272,
+  "height": 246,
+  "known_free_space_fraction": 0.9996174770486229,
+  "occupied_distance_mean_m": 0.08109866181913092,
+  "occupied_distance_p95_m": 0.4950000000000001,
   "case": "mapping_slow",
   "speed_m_s": 0.2,
   "noise_stddev_m": 0.01,
-  "duration_sim_s": 165.381,
+  "duration_sim_s": 165.332,
   "route": [
     [
       0,
